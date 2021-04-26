@@ -2,16 +2,14 @@ const path = require("path");
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
-console.log('----------');
-console.log(__dirname);
-
-console.log('----------');
 module.exports = {
     entry: ['babel-polyfill', path.join(__dirname, "src/dapp")],
     output: {
         path: path.join(__dirname, "prod/dapp"),
-        filename: "bundle.js"
+        filename: "bundle.js",
+        sourceMapFilename: "[name].js.map"
     },
+    devtool: "source-map",
     module: {
         rules: [
             {
