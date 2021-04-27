@@ -3,11 +3,10 @@ pragma solidity >=0.6.12;
 
 import "../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol";
 
-contract FlightSuretyData {
-    using SafeMath for uint256;
+import "./OperationalControl.sol";
 
-    address private contractOwner;
-    bool private operational = true;
+contract FlightSuretyData is OperationalControl {
+    using SafeMath for uint256;
 
     mapping (address => bool) authorizedCallers;
 
@@ -15,31 +14,9 @@ contract FlightSuretyData {
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
 
-    constructor() public {
-        contractOwner = msg.sender;
-    }
-
-    modifier requireIsOperational() {
-        require(operational, "Contract is currently not operational");
-        _;
-    }
-
-    modifier requireContractOwner() {
-        require(msg.sender == contractOwner, "Caller is not contract owner");
-        _;
-    }
-
     modifier requireAuthorizedCaller() {
         require(authorizedCallers[msg.sender] , "Caller is not authorized");
         _;
-    }
-
-    function isOperational() public view returns (bool) {
-        return operational;
-    }
-
-    function setOperatingStatus(bool mode) external requireContractOwner {
-        operational = mode;
     }
 
     function authorizeCaller(address caller) external requireContractOwner {

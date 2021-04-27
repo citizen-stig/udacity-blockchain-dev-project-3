@@ -4,7 +4,7 @@ pragma solidity >=0.6.12;
 import "../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "./FlightSuretyData.sol";
 
-contract FlightSuretyApp {
+contract FlightSuretyApp is OperationalControl {
     using SafeMath for uint256;
 
     // Flight status codes
@@ -15,7 +15,6 @@ contract FlightSuretyApp {
     uint8 private constant STATUS_CODE_LATE_TECHNICAL = 40;
     uint8 private constant STATUS_CODE_LATE_OTHER = 50;
 
-    address private contractOwner;
     FlightSuretyData private flightSuretyData;
 
     struct Flight {
@@ -27,22 +26,11 @@ contract FlightSuretyApp {
 
     mapping(bytes32 => Flight) private flights;
 
-    modifier requireIsOperational() {
-        require(true, "Contract is currently not operational");
-        _;
-    }
-
-    modifier requireContractOwner() {
-        require(msg.sender == contractOwner, "Caller is not contract owner");
-        _;
-    }
-
-    constructor(address payable dataContract) public {
-        contractOwner = msg.sender;
+    constructor(address payable dataContract) OperationalControl() public {
         flightSuretyData = FlightSuretyData(dataContract);
     }
 
-    function isOperational() public pure returns (bool) {
+    function isOperational() public view override returns (bool) {
         return true && flightSuretyData.isOperational();
     }
 

@@ -8,9 +8,20 @@ contract('FlightSurety: separation of concerns', async (accounts) => {
     });
 
     describe('Operational status control', async function () {
-        it('is operational initially');
+        it('is operational initially', async function () {
+            let appStatus = await config.flightSuretyApp.isOperational.call();
+            assert.isTrue(appStatus, "App contract is not operational initially");
+            let dataStatus = await config.flightSuretyData.isOperational.call();
+            assert.isTrue(dataStatus, "Data contract is not operational initially");
+        });
         it('forbids changing operational status for non-owner');
-        it('allows changing operational status for contract owner');
+        it('allows changing operational status for contract owner', async function() {
+            await config.flightSuretyData.setOperatingStatus(false, {from: config.owner});
+            let dataStatus = await config.flightSuretyData.isOperational.call();
+            assert.isFalse(dataStatus);
+            let appStatus = await config.flightSuretyApp.isOperational.call();
+            assert.isFalse(appStatus);
+        });
         it('blocks access to functions when non operational');
     });
 
