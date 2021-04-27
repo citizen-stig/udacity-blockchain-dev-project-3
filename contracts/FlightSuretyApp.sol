@@ -1,21 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.12;
 
-// It's important to avoid vulnerabilities due to numeric overflow bugs
-// OpenZeppelin's SafeMath library, when used correctly, protects agains such bugs
-// More info: https://www.nccgroup.trust/us/about-us/newsroom-and-events/blog/2018/november/smart-contract-insecurity-bad-arithmetic/
-
 import "../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "./FlightSuretyData.sol";
 
-/************************************************** */
-/* FlightSurety Smart Contract                      */
-/************************************************** */
 contract FlightSuretyApp {
-    using SafeMath for uint256; // Allow SafeMath functions to be called for all uint256 types (similar to "prototype" in Javascript)
-
-    /********************************************************************************************/
-    /*                                       DATA VARIABLES                                     */
-    /********************************************************************************************/
+    using SafeMath for uint256;
 
     // Flight status codes
     uint8 private constant STATUS_CODE_UNKNOWN = 0;
@@ -25,7 +15,8 @@ contract FlightSuretyApp {
     uint8 private constant STATUS_CODE_LATE_TECHNICAL = 40;
     uint8 private constant STATUS_CODE_LATE_OTHER = 50;
 
-    address private contractOwner; // Account used to deploy contract
+    address private contractOwner;
+    FlightSuretyData private flightSuretyData;
 
     struct Flight {
         bool isRegistered;
@@ -33,52 +24,26 @@ contract FlightSuretyApp {
         uint256 updatedTimestamp;
         address airline;
     }
+
     mapping(bytes32 => Flight) private flights;
 
-    /********************************************************************************************/
-    /*                                       FUNCTION MODIFIERS                                 */
-    /********************************************************************************************/
-
-    // Modifiers help avoid duplication of code. They are typically used to validate something
-    // before a function is allowed to be executed.
-
-    /**
-     * @dev Modifier that requires the "operational" boolean variable to be "true"
-     *      This is used on all state changing functions to pause the contract in
-     *      the event there is an issue that needs to be fixed
-     */
     modifier requireIsOperational() {
-        // Modify to call data contract's status
         require(true, "Contract is currently not operational");
-        _; // All modifiers require an "_" which indicates where the function body will be added
+        _;
     }
 
-    /**
-     * @dev Modifier that requires the "ContractOwner" account to be the function caller
-     */
     modifier requireContractOwner() {
         require(msg.sender == contractOwner, "Caller is not contract owner");
         _;
     }
 
-    /********************************************************************************************/
-    /*                                       CONSTRUCTOR                                        */
-    /********************************************************************************************/
-
-    /**
-     * @dev Contract constructor
-     *
-     */
-    constructor() public {
+    constructor(address payable dataContract) public {
         contractOwner = msg.sender;
+        flightSuretyData = FlightSuretyData(dataContract);
     }
 
-    /********************************************************************************************/
-    /*                                       UTILITY FUNCTIONS                                  */
-    /********************************************************************************************/
-
     function isOperational() public pure returns (bool) {
-        return true; // Modify to call data contract's status
+        return true && flightSuretyData.isOperational();
     }
 
     /********************************************************************************************/
@@ -90,9 +55,9 @@ contract FlightSuretyApp {
      *
      */
     function registerAirline()
-        external
-        pure
-        returns (bool success, uint256 votes)
+    external
+    pure
+    returns (bool success, uint256 votes)
     {
         return (success, 0);
     }
@@ -124,10 +89,10 @@ contract FlightSuretyApp {
 
         // Generate a unique key for storing the request
         bytes32 key =
-            keccak256(abi.encodePacked(index, airline, flight, timestamp));
+        keccak256(abi.encodePacked(index, airline, flight, timestamp));
         oracleResponses[key] = ResponseInfo({
-            requester: msg.sender,
-            isOpen: true
+        requester : msg.sender,
+        isOpen : true
         });
 
         emit OracleRequest(index, airline, flight, timestamp);
@@ -197,7 +162,7 @@ contract FlightSuretyApp {
 
         uint8[3] memory indexes = generateIndexes(msg.sender);
 
-        oracles[msg.sender] = Oracle({isRegistered: true, indexes: indexes});
+        oracles[msg.sender] = Oracle({isRegistered : true, indexes : indexes});
     }
 
     function getMyIndexes() external view returns (uint8[3] memory) {
@@ -222,13 +187,13 @@ contract FlightSuretyApp {
     ) external {
         require(
             (oracles[msg.sender].indexes[0] == index) ||
-                (oracles[msg.sender].indexes[1] == index) ||
-                (oracles[msg.sender].indexes[2] == index),
+            (oracles[msg.sender].indexes[1] == index) ||
+            (oracles[msg.sender].indexes[2] == index),
             "Index does not match oracle request"
         );
 
         bytes32 key =
-            keccak256(abi.encodePacked(index, airline, flight, timestamp));
+        keccak256(abi.encodePacked(index, airline, flight, timestamp));
         require(
             oracleResponses[key].isOpen,
             "Flight or timestamp do not match oracle request"
@@ -281,19 +246,20 @@ contract FlightSuretyApp {
 
         // Pseudo random number...the incrementing nonce adds variation
         uint8 random =
-            uint8(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(
-                            blockhash(block.number - nonce++),
-                            account
-                        )
+        uint8(
+            uint256(
+                keccak256(
+                    abi.encodePacked(
+                        blockhash(block.number - nonce++),
+                        account
                     )
-                ) % maxValue
-            );
+                )
+            ) % maxValue
+        );
 
         if (nonce > 250) {
-            nonce = 0; // Can only fetch blockhashes for last 256 blocks so we adapt
+            nonce = 0;
+            // Can only fetch blockhashes for last 256 blocks so we adapt
         }
 
         return random;
