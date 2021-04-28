@@ -14,7 +14,14 @@ contract('FlightSurety: separation of concerns', async (accounts) => {
             let dataStatus = await config.flightSuretyData.isOperational.call();
             assert.isTrue(dataStatus, "Data contract is not operational initially");
         });
-        it('forbids changing operational status for non-owner');
+        it('forbids changing operational status for non-owner', async function() {
+            try {
+                await config.flightSuretyData.setOperatingStatus(false, {from: config.testAddresses[3]});
+                assert.fail("Should not allow change operational status for non-owner");
+            } catch (error) {
+                assert.equal('Caller is not contract owner', error.reason);
+            }
+        });
         it('allows changing operational status for contract owner', async function() {
             await config.flightSuretyData.setOperatingStatus(false, {from: config.owner});
             let dataStatus = await config.flightSuretyData.isOperational.call();
@@ -22,7 +29,16 @@ contract('FlightSurety: separation of concerns', async (accounts) => {
             let appStatus = await config.flightSuretyApp.isOperational.call();
             assert.isFalse(appStatus);
         });
-        it('blocks access to functions when non operational');
+        it('blocks access to functions when non operational', async function() {
+            try {
+                await config.flightSuretyApp.setOperatingStatus(false, {from: config.owner});
+                let appStatus = await config.flightSuretyApp.isOperational.call();
+                await config.flightSuretyApp.registerAirline({from: config.owner});
+                assert.fail("XXXXXXXXXX: Should not allow function call when non operational");
+            } catch (error) {
+                assert.equal('Contract is currently not operational', Object.values(error.data)[0].reason);
+            }
+        });
     });
 
     describe('Multiparty', async function() {

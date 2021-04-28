@@ -7,7 +7,7 @@ contract OperationalControl is OwnerManaged {
     bool private operational = true;
 
     modifier requireIsOperational() {
-        require(operational, "Contract is currently not operational");
+        require(isOperational(), "Contract is currently not operational");
         _;
     }
 

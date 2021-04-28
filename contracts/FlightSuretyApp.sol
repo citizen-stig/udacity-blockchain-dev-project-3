@@ -31,7 +31,7 @@ contract FlightSuretyApp is OperationalControl {
     }
 
     function isOperational() public view override returns (bool) {
-        return true && flightSuretyData.isOperational();
+        return OperationalControl.isOperational() && flightSuretyData.isOperational();
     }
 
     /********************************************************************************************/
@@ -42,11 +42,7 @@ contract FlightSuretyApp is OperationalControl {
      * @dev Add an airline to the registration queue
      *
      */
-    function registerAirline()
-    external
-    pure
-    returns (bool success, uint256 votes)
-    {
+    function registerAirline() requireIsOperational external view returns (bool success, uint256 votes) {
         return (success, 0);
     }
 
