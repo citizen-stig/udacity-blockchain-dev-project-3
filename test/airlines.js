@@ -3,6 +3,7 @@ const Test = require('../config/testConfig.js');
 
 contract('FlightSurety: airlines', async (accounts) => {
     let config;
+
     before('setup contract', async () => {
         config = await Test.Config(accounts);
         await config.flightSuretyData.authorizeCaller(config.flightSuretyApp.address);
@@ -10,7 +11,7 @@ contract('FlightSurety: airlines', async (accounts) => {
 
     describe('Onboarding', async function () {
         it('has first airline registered initially', async function () {
-            const isRegistered = await config.flightSuretyApp.isRegisteredAirline.call(accounts[0]);
+            const isRegistered = await config.flightSuretyApp.isRegisteredAirline.call({from: config.owner});
             assert.isTrue(isRegistered);
             const isAuthorized = await config.flightSuretyApp.isAuthorizedAirline.call({from: config.owner});
             assert.isFalse(isAuthorized);
@@ -34,7 +35,7 @@ contract('FlightSurety: airlines', async (accounts) => {
         it('just registers new airline from one of previous until number of registered < 4', async function () {
             let newAirline = accounts[1];
             await config.flightSuretyApp.registerAirline(newAirline, {from: config.owner});
-            let isRegistered = await config.flightSuretyApp.isRegisteredAirline.call(newAirline);
+            let isRegistered = await config.flightSuretyApp.isRegisteredAirline.call({from: newAirline});
             assert.isTrue(isRegistered);
 
             let isAuthorized = await config.flightSuretyApp.isAuthorizedAirline.call({from: newAirline});
@@ -46,7 +47,7 @@ contract('FlightSurety: airlines', async (accounts) => {
             for (let i = 2; i < 5; i++) {
                 let newAirline = accounts[i];
                 await config.flightSuretyApp.registerAirline(newAirline, {from: config.owner});
-                let isRegistered = await config.flightSuretyApp.isRegisteredAirline.call(newAirline);
+                let isRegistered = await config.flightSuretyApp.isRegisteredAirline.call({from: newAirline});
                 assert.isTrue(isRegistered);
                 await config.flightSuretyApp.fundInsurance({from: newAirline, value: fundAmount});
                 let isAuthorized = await config.flightSuretyApp.isAuthorizedAirline.call({from: newAirline});
@@ -58,11 +59,11 @@ contract('FlightSurety: airlines', async (accounts) => {
             // Register fifth
             let fifthAirline = accounts[5];
             await config.flightSuretyApp.registerAirline(fifthAirline, {from: config.owner});
-            let isRegistered = await config.flightSuretyApp.isRegisteredAirline.call(fifthAirline);
+            let isRegistered = await config.flightSuretyApp.isRegisteredAirline.call({from: fifthAirline});
             assert.isFalse(isRegistered);
             await config.flightSuretyApp.registerAirline(fifthAirline, {from: accounts[1]});
             await config.flightSuretyApp.registerAirline(fifthAirline, {from: accounts[2]});
-            isRegistered = await config.flightSuretyApp.isRegisteredAirline.call(fifthAirline);
+            isRegistered = await config.flightSuretyApp.isRegisteredAirline.call({from: fifthAirline});
             assert.isTrue(isRegistered);
         });
 
@@ -80,4 +81,21 @@ contract('FlightSurety: airlines', async (accounts) => {
             assert.isTrue(statusAfter);
         });
     });
+
+    describe('Passengers', async function() {
+        let flightNumber = "815";
+        let timestamp = Math.floor(+new Date() / 1000) + (86400 * 2);
+        let airline;
+        let passenger = accounts[11];
+
+        before("register flight", async () => {
+            airline = config.owner;
+            await config.flightSuretyApp.registerFlight(flightNumber, timestamp, {from: airline});
+        });
+
+        it("can buy insurance", async function() {
+            await config.flightSuretyApp.buyInsurance(
+                airline, flightNumber, timestamp, {from: passenger, value: web3.utils.toWei("0.4", "ether")});
+        });
+    })
 });

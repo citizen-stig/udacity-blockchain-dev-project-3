@@ -17,8 +17,8 @@ contract FlightSuretyApp is OperationalControl {
         return OperationalControl.isOperational() && flightSuretyData.isOperational();
     }
 
-    modifier requireAuthorizedAirline() {
-        require(flightSuretyData.isAuthorizedAirline(msg.sender));
+    modifier requireAuthorizedAirline(address airline) {
+        require(flightSuretyData.isAuthorizedAirline(airline));
         _;
     }
 
@@ -34,7 +34,7 @@ contract FlightSuretyApp is OperationalControl {
         require(flightSuretyData.isRegisteredAirline(msg.sender), "Airline is not registered");
         require(flightSuretyData.isAuthorizedAirline(msg.sender), "Airline is not authorized");
         if (flightSuretyData.numberOfRegisteredAirlines() <= 4) {
-            flightSuretyData.registerAirline(newAirline, msg.sender);
+            flightSuretyData.registerAirline(newAirline);
             success = true;
             votes = 1;
         } else {
@@ -44,7 +44,7 @@ contract FlightSuretyApp is OperationalControl {
             flightSuretyData.enqueueAirlineForRegistration(newAirline, msg.sender);
             uint256 requiredVotes = (flightSuretyData.numberOfRegisteredAirlines() / 2) + 1;
             if (flightSuretyData.votesForAirline(newAirline) >= requiredVotes) {
-                flightSuretyData.registerAirline(newAirline, msg.sender);
+                flightSuretyData.registerAirline(newAirline);
                 success = true;
                 votes = flightSuretyData.votesForAirline(newAirline);
             }
@@ -52,8 +52,8 @@ contract FlightSuretyApp is OperationalControl {
         return (success, votes);
     }
 
-    function isRegisteredAirline(address airline) external view returns (bool) {
-        return flightSuretyData.isRegisteredAirline(airline);
+    function isRegisteredAirline() external view returns (bool) {
+        return flightSuretyData.isRegisteredAirline(msg.sender);
     }
 
     function isAuthorizedAirline() external view returns (bool) {
@@ -72,16 +72,21 @@ contract FlightSuretyApp is OperationalControl {
      * @dev Register a future flight for insuring.
      *
      */
-    function registerFlight(string memory flight, uint256 timestamp) requireAuthorizedAirline() external {
+    function registerFlight(string memory flight, uint256 timestamp) requireAuthorizedAirline(msg.sender) external {
         flightSuretyData.registerFlight(msg.sender, flight, timestamp);
     }
 
-    function isRegisteredFlight(address airline, string memory flight, uint256 timestamp) external view returns(bool) {
+    function isRegisteredFlight(address airline, string memory flight, uint256 timestamp) external view returns (bool) {
         return flightSuretyData.isRegisteredFlight(airline, flight, timestamp);
     }
 
-    function getFlightStatus(address airline, string memory flight, uint256 timestamp) external view returns(uint8) {
+    function getFlightStatus(address airline, string memory flight, uint256 timestamp) external view returns (uint8) {
         return flightSuretyData.getFlightStatus(airline, flight, timestamp);
+    }
+
+    function buyInsurance(address airline, string memory flight, uint256 timestamp) requireAuthorizedAirline(airline) external payable {
+        require(msg.value <= 10 ether, "Cannot insure value this big");
+        flightSuretyData.buyInsurance(airline, flight, timestamp, msg.sender);
     }
 
     /**

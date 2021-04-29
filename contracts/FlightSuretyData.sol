@@ -30,14 +30,24 @@ contract FlightSuretyData is OperationalControl {
     uint8 private constant STATUS_CODE_LATE_TECHNICAL = 40;
     uint8 private constant STATUS_CODE_LATE_OTHER = 50;
 
+    struct Insurance {
+        address passenger;
+        uint256 amount;
+//        bool isRefunded;
+    }
+
     struct Flight {
         bool isRegistered;
         uint8 statusCode;
         uint256 updatedTimestamp;
         address airline;
+        Insurance[] insurances;
     }
 
     mapping(bytes32 => Flight) private flights;
+
+    // passengers balances, insurance reward is stored here;
+    mapping(address => uint256) private balances;
 
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
@@ -69,7 +79,7 @@ contract FlightSuretyData is OperationalControl {
      *
      */
 
-    function registerAirline(address newAirline, address existingAirline) requireAuthorizedCaller external {
+    function registerAirline(address newAirline) requireAuthorizedCaller external {
         airlines[newAirline].isRegistered = true;
         if (airlines[newAirline].createdAt == 0) {
             airlines[newAirline].createdAt = block.timestamp;
@@ -86,15 +96,15 @@ contract FlightSuretyData is OperationalControl {
         airlines[existingAirline].votedFor[newAirline] = true;
     }
 
-    function hasVotedFor(address newAirline, address existingAirline) external view returns(bool) {
+    function hasVotedFor(address newAirline, address existingAirline) external view returns (bool) {
         return airlines[existingAirline].votedFor[newAirline];
     }
 
-    function votesForAirline(address newAirline) external view returns(uint256) {
+    function votesForAirline(address newAirline) external view returns (uint256) {
         return airlines[newAirline].votes.length;
     }
 
-    function airlineSignedUpAt(address airline) external view returns(uint256) {
+    function airlineSignedUpAt(address airline) external view returns (uint256) {
         return airlines[airline].createdAt;
     }
 
@@ -107,7 +117,7 @@ contract FlightSuretyData is OperationalControl {
     }
 
     function fundAirline(address airline) requireAuthorizedCaller external payable {
-        airlines[airline].fundsProvided = airlines[airline].fundsProvided + msg.value;
+        airlines[airline].fundsProvided += msg.value;
     }
 
     function authorizeAirline(address airline) requireAuthorizedCaller external {
@@ -129,14 +139,29 @@ contract FlightSuretyData is OperationalControl {
         flights[key].updatedTimestamp = block.timestamp;
     }
 
-    function isRegisteredFlight(address airline, string memory flight, uint256 timestamp) external view returns(bool) {
+    function isRegisteredFlight(address airline, string memory flight, uint256 timestamp) external view returns (bool) {
         bytes32 key = getFlightKey(airline, flight, timestamp);
         return flights[key].isRegistered;
     }
 
-    function getFlightStatus(address airline, string memory flight, uint256 timestamp) external view returns(uint8) {
+    function getFlightStatus(address airline, string memory flight, uint256 timestamp) external view returns (uint8) {
         bytes32 key = getFlightKey(airline, flight, timestamp);
         return flights[key].statusCode;
+    }
+
+    function buyInsurance(address airline, string memory flight, uint256 timestamp, address passenger) requireAuthorizedCaller external payable {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        flights[key].insurances.push(Insurance(passenger, msg.value));
+    }
+
+    function refundFlight(address airline, string memory flight, uint256 timestamp, uint paybackRatio) requireAuthorizedCaller external {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+
+        for (uint i = 0; i < flights[key].insurances.length; i++) {
+            Insurance memory insurance = flights[key].insurances[i];
+            balances[insurance.passenger] += insurance.amount * 100 / paybackRatio;
+//            flights[key].insurances[i].isRefunded = true;
+        }
     }
 
     /**
@@ -146,7 +171,6 @@ contract FlightSuretyData is OperationalControl {
      */
     function fund() public payable {
     }
-
 
 
     /**
