@@ -8,6 +8,50 @@ contract FlightSuretyApp is OperationalControl {
     using SafeMath for uint256;
 
     FlightSuretyData private flightSuretyData;
+    uint256 public constant MAX_INSURANCE = 1 ether;
+    uint256 public constant AIRLINE_MIN_DEPOSIT = 10 ether;
+
+
+    // Oracles
+    // Incremented to add pseudo-randomness at various points
+    uint8 private nonce = 0;
+
+    // Fee to be paid when registering oracle
+    uint256 public constant ORACLE_REGISTRATION_FEE = 1 ether;
+
+    // Number of oracles that must respond for valid status
+    uint256 private constant MIN_RESPONSES = 3;
+
+    struct Oracle {
+        bool isRegistered;
+        uint8[3] indexes;
+    }
+
+    mapping(address => Oracle) private oracles;
+
+    /********************************************************************************************/
+    /*                                       EVENT DEFINITIONS                                  */
+    /********************************************************************************************/
+    event OracleRequest(
+        uint8 index,
+        address airline,
+        string flight,
+        uint256 timestamp
+    );
+
+    event FlightStatusInfo(
+        address airline,
+        string flight,
+        uint256 timestamp,
+        uint8 status
+    );
+
+    event OracleReport(
+        address airline,
+        string flight,
+        uint256 timestamp,
+        uint8 status
+    );
 
     constructor(address payable dataContract) OperationalControl() public {
         flightSuretyData = FlightSuretyData(dataContract);
@@ -25,6 +69,8 @@ contract FlightSuretyApp is OperationalControl {
     /********************************************************************************************/
     /*                                     SMART CONTRACT FUNCTIONS                             */
     /********************************************************************************************/
+
+
 
     /**
      * @dev Add an airline to the registration queue
@@ -63,7 +109,7 @@ contract FlightSuretyApp is OperationalControl {
     function fundInsurance() external payable {
         require(flightSuretyData.isRegisteredAirline(msg.sender), "Airline is not registered");
         flightSuretyData.fundAirline{value : msg.value}(msg.sender);
-        if (flightSuretyData.getTotalFundsProvidedByAirline(msg.sender) >= 10 ether) {
+        if (flightSuretyData.getTotalFundsProvidedByAirline(msg.sender) >= AIRLINE_MIN_DEPOSIT) {
             flightSuretyData.authorizeAirline(msg.sender);
         }
     }
@@ -85,18 +131,80 @@ contract FlightSuretyApp is OperationalControl {
     }
 
     function buyInsurance(address airline, string memory flight, uint256 timestamp) requireAuthorizedAirline(airline) external payable {
-        require(msg.value <= 10 ether, "Cannot insure value this big");
+        require(msg.value <= MAX_INSURANCE, "Cannot insure value this big");
         flightSuretyData.buyInsurance(airline, flight, timestamp, msg.sender);
     }
 
+
     /**
-     * @dev Called after oracle has updated flight status
+     *
+     * ORACLES
      *
      */
-    function processFlightStatus(
-        address airline,
-        string memory flight,
-        uint256 timestamp,
-        uint8 statusCode
-    ) internal pure {}
+
+    modifier requireRegisteredOracle(address oracle) {
+        require(oracles[oracle].isRegistered, "Not registered as an oracle");
+        _;
+    }
+
+    function registerOracle() external payable {
+        require(msg.value >= ORACLE_REGISTRATION_FEE, "Insufficient registration fee");
+
+        uint8[3] memory indexes = generateIndexes(msg.sender);
+
+        oracles[msg.sender] = Oracle({isRegistered : true, indexes : indexes});
+    }
+
+    function getMyIndexes() requireRegisteredOracle(msg.sender) external view returns (uint8[3] memory) {
+        return oracles[msg.sender].indexes;
+    }
+
+    function fetchFlightStatus(address airline, string memory flight, uint256 timestamp) external {
+        uint8 index = getRandomIndex(msg.sender);
+        emit OracleRequest(index, airline, flight, timestamp);
+    }
+
+    function generateIndexes(address account) internal returns (uint8[3] memory) {
+        uint8[3] memory indexes;
+        indexes[0] = getRandomIndex(account);
+
+        indexes[1] = indexes[0];
+        while (indexes[1] == indexes[0]) {
+            indexes[1] = getRandomIndex(account);
+        }
+
+        indexes[2] = indexes[1];
+        while ((indexes[2] == indexes[0]) || (indexes[2] == indexes[1])) {
+            indexes[2] = getRandomIndex(account);
+        }
+
+        return indexes;
+    }
+
+    // Returns array of three non-duplicating integers from 0-9
+    function getRandomIndex(address account) internal returns (uint8) {
+        uint8 maxValue = 10;
+
+        // Pseudo random number...the incrementing nonce adds variation
+        uint8 random =
+        uint8(
+            uint256(
+                keccak256(
+                    abi.encodePacked(
+                        blockhash(block.number - nonce++),
+                        account
+                    )
+                )
+            ) % maxValue
+        );
+
+        if (nonce > 250) {
+            nonce = 0;
+            // Can only fetch block hashes for last 256 blocks so we adapt
+        }
+
+        return random;
+    }
+
+
 }

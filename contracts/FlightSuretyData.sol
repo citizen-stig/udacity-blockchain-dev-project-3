@@ -4,8 +4,9 @@ pragma solidity >=0.6.12;
 import "../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 import "./OperationalControl.sol";
+import "./FlightUtils.sol";
 
-contract FlightSuretyData is OperationalControl {
+contract FlightSuretyData is OperationalControl, FlightUtils {
     using SafeMath for uint256;
 
     mapping(address => bool) private authorizedCallers;
@@ -126,10 +127,6 @@ contract FlightSuretyData is OperationalControl {
 
     function getTotalFundsProvidedByAirline(address airline) external view returns (uint256) {
         return airlines[airline].fundsProvided;
-    }
-
-    function getFlightKey(address airline, string memory flight, uint256 timestamp) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(airline, flight, timestamp));
     }
 
     function registerFlight(address airline, string memory flight, uint256 timestamp) requireAuthorizedCaller external {
