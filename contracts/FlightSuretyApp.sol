@@ -42,8 +42,58 @@ contract FlightSuretyApp is OperationalControl {
      * @dev Add an airline to the registration queue
      *
      */
-    function registerAirline() requireIsOperational external view returns (bool success, uint256 votes) {
+    function registerAirline(address newAirline) requireIsOperational external returns (bool success, uint256 votes) {
+        if (flightSuretyData.numberOfRegisteredAirlines() <= 4) {
+            flightSuretyData.registerAirline(newAirline, msg.sender);
+            success = true;
+        }
+        //        Airline newAirline = airlines[newAirlineAccount];
+        //        if (newAirline.isRegistered) {
+        //            return;
+        //        }
+        //        if (newAirline.createdAt == 0) {
+        //            // really new airline, updating timestamp
+        //            newAirline.createdAt = block.timestamp;
+        //        }
+        //
+        //        if (numberOfRegisteredAirlines <= 4) {
+        //           newAirline.isRegistered = true;
+        //        } else {
+        //            if (airlines[tx.origin].votedFor) {
+        //                revert("This caller already voted for this airline");
+        //            }
+        //
+        //            if (airlines[tx.origin].createdAt > newAirline.createdAt) {
+        //                revert("Cannot vote for airlines that were queued before caller");
+        //            }
+        //
+        //            newAirline.votes.push(tx.origin);
+        //            airlines[tx.origin].votedFor = true;
+        //
+        //            uint256 requiredVotes = (numberOfRegisteredAirlines / 2) + 1;
+        //            if (newAirline.votes.length > requiredVotes) {
+        //                newAirline.isRegistered = true;
+        //            }
+        //        }
+        //
+        //        airlines[newAirlineAccount] = newAirline;
         return (success, 0);
+    }
+
+    function isRegisteredAirline(address airline) external view returns(bool) {
+        return flightSuretyData.isRegisteredAirline(airline);
+    }
+
+    function isAuthorizedAirline() external view returns(bool) {
+        return flightSuretyData.isAuthorizedAirline(msg.sender);
+    }
+
+    function fundInsurance() external payable {
+        require(flightSuretyData.isRegisteredAirline(msg.sender), "Airline is not registered");
+        flightSuretyData.fundAirline.value(msg.value)(msg.sender);
+        if (flightSuretyData.getTotalFundsProvidedByAirline(msg.sender) >= 10 ether) {
+            flightSuretyData.authorizeAirline(msg.sender);
+        }
     }
 
     /**

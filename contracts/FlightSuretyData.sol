@@ -8,14 +8,33 @@ import "./OperationalControl.sol";
 contract FlightSuretyData is OperationalControl {
     using SafeMath for uint256;
 
-    mapping (address => bool) authorizedCallers;
+    mapping(address => bool) private authorizedCallers;
+
+    struct Airline {
+        bool isRegistered;
+        bool isAuthorized;
+        uint256 fundsProvided;
+        uint256 createdAt;
+        address[] votes;
+        mapping(address => bool) votedFor;
+    }
+
+    mapping(address => Airline) private airlines;
+    uint256 public numberOfRegisteredAirlines;
 
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
 
+    constructor() public {
+        airlines[msg.sender].isRegistered = true;
+        airlines[msg.sender].createdAt = block.timestamp;
+        numberOfRegisteredAirlines = 1;
+    }
+
+
     modifier requireAuthorizedCaller() {
-        require(authorizedCallers[msg.sender] , "Caller is not authorized");
+        require(authorizedCallers[msg.sender], "Caller is not authorized");
         _;
     }
 
@@ -32,7 +51,53 @@ contract FlightSuretyData is OperationalControl {
      *      Can only be called from FlightSuretyApp contract
      *
      */
-    function registerAirline() external pure {}
+
+    //    function enqueueNewAirline(address newAirline, address existingAirline) requireAuthorizedCaller external {
+    //        require(airlines[newAirline].isRegistered == false, "Airline already registered");
+    //        require(airlines[existingAirline].votedFor[newAirline] == false, "Duplicate voting");
+    //        require()
+    //
+    //        airlines[existingAirline].votedFor[newAirline] = true;
+    //        if (airlines[newAirline].createdAt == 0) {
+    //            airlines[newAirline].createdAt = block.timestamp;
+    //        }
+    //
+    //        airlines[newAirline].votes.push(existingAirline);
+    //    }
+    //
+    //    function getVotes(address newAirline) external view returns (uint){
+    //        return airlines[newAirline].votes.length;
+    //    }
+
+    function registerAirline(address newAirline, address existingAirline) requireAuthorizedCaller external {
+        require(airlines[existingAirline].isAuthorized, "Airline is not authorized");
+        require(airlines[newAirline].isRegistered == false, "Airline already registered");
+
+        airlines[newAirline].isRegistered = true;
+        numberOfRegisteredAirlines += 1;
+
+    }
+
+    function isRegisteredAirline(address airline) external view returns (bool) {
+        return airlines[airline].isRegistered;
+    }
+
+    function isAuthorizedAirline(address airline) external view returns (bool) {
+        return airlines[airline].isAuthorized;
+    }
+
+    function fundAirline(address airline) requireAuthorizedCaller external payable {
+        require(airlines[airline].isRegistered, "Airline is not registered");
+        airlines[airline].fundsProvided = airlines[airline].fundsProvided + msg.value;
+    }
+
+    function authorizeAirline(address airline) requireAuthorizedCaller external {
+        airlines[airline].isAuthorized = true;
+    }
+
+    function getTotalFundsProvidedByAirline(address airline) external view returns (uint256) {
+        return airlines[airline].fundsProvided;
+    }
 
     /**
      * @dev Buy insurance for a flight
@@ -56,7 +121,9 @@ contract FlightSuretyData is OperationalControl {
      *      resulting in insurance payouts, the contract should be self-sustaining
      *
      */
-    function fund() public payable {}
+    function fund() public payable {
+
+    }
 
     function getFlightKey(
         address airline,
