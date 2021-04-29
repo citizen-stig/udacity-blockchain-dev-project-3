@@ -33,8 +33,9 @@ contract('FlightSurety: separation of concerns', async (accounts) => {
             try {
                 await config.flightSuretyApp.setOperatingStatus(false, {from: config.owner});
                 let appStatus = await config.flightSuretyApp.isOperational.call();
-                await config.flightSuretyApp.registerAirline({from: config.owner});
-                assert.fail("XXXXXXXXXX: Should not allow function call when non operational");
+                assert.isFalse(appStatus);
+                await config.flightSuretyApp.registerAirline(accounts[3], {from: config.owner});
+                assert.fail("Should not allow function call when non operational");
             } catch (error) {
                 assert.equal('Contract is currently not operational', Object.values(error.data)[0].reason);
             }

@@ -52,30 +52,33 @@ contract FlightSuretyData is OperationalControl {
      *
      */
 
-    //    function enqueueNewAirline(address newAirline, address existingAirline) requireAuthorizedCaller external {
-    //        require(airlines[newAirline].isRegistered == false, "Airline already registered");
-    //        require(airlines[existingAirline].votedFor[newAirline] == false, "Duplicate voting");
-    //        require()
-    //
-    //        airlines[existingAirline].votedFor[newAirline] = true;
-    //        if (airlines[newAirline].createdAt == 0) {
-    //            airlines[newAirline].createdAt = block.timestamp;
-    //        }
-    //
-    //        airlines[newAirline].votes.push(existingAirline);
-    //    }
-    //
-    //    function getVotes(address newAirline) external view returns (uint){
-    //        return airlines[newAirline].votes.length;
-    //    }
-
     function registerAirline(address newAirline, address existingAirline) requireAuthorizedCaller external {
-        require(airlines[existingAirline].isAuthorized, "Airline is not authorized");
-        require(airlines[newAirline].isRegistered == false, "Airline already registered");
-
         airlines[newAirline].isRegistered = true;
+        if (airlines[newAirline].createdAt == 0) {
+            airlines[newAirline].createdAt = block.timestamp;
+        }
         numberOfRegisteredAirlines += 1;
+    }
 
+    function enqueueAirlineForRegistration(address newAirline, address existingAirline) requireAuthorizedCaller external {
+        require(airlines[existingAirline].votedFor[newAirline] == false, "Already votes for this airline");
+        if (airlines[newAirline].createdAt == 0) {
+            airlines[newAirline].createdAt = block.timestamp;
+        }
+        airlines[newAirline].votes.push(newAirline);
+        airlines[existingAirline].votedFor[newAirline] = true;
+    }
+
+    function hasVotedFor(address newAirline, address existingAirline) external view returns(bool) {
+        return airlines[existingAirline].votedFor[newAirline];
+    }
+
+    function votesForAirline(address newAirline) external view returns(uint256) {
+        return airlines[newAirline].votes.length;
+    }
+
+    function airlineSignedUpAt(address airline) external view returns(uint256) {
+        return airlines[airline].createdAt;
     }
 
     function isRegisteredAirline(address airline) external view returns (bool) {
@@ -87,7 +90,6 @@ contract FlightSuretyData is OperationalControl {
     }
 
     function fundAirline(address airline) requireAuthorizedCaller external payable {
-        require(airlines[airline].isRegistered, "Airline is not registered");
         airlines[airline].fundsProvided = airlines[airline].fundsProvided + msg.value;
     }
 
@@ -139,5 +141,9 @@ contract FlightSuretyData is OperationalControl {
      */
     fallback() external payable {
         fund();
+    }
+
+    receive() external payable {
+        // custom function code
     }
 }

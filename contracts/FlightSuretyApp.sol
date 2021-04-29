@@ -43,54 +43,38 @@ contract FlightSuretyApp is OperationalControl {
      *
      */
     function registerAirline(address newAirline) requireIsOperational external returns (bool success, uint256 votes) {
+        require(flightSuretyData.isRegisteredAirline(msg.sender), "Airline is not registered");
+        require(flightSuretyData.isAuthorizedAirline(msg.sender), "Airline is not authorized");
         if (flightSuretyData.numberOfRegisteredAirlines() <= 4) {
             flightSuretyData.registerAirline(newAirline, msg.sender);
             success = true;
+            votes = 1;
+        } else {
+            uint256 newAirlineSignedUpAt = flightSuretyData.airlineSignedUpAt(newAirline);
+            require(newAirlineSignedUpAt == 0 || flightSuretyData.airlineSignedUpAt(msg.sender) <= newAirlineSignedUpAt,
+                "Cannot vote for earlier airlines");
+            flightSuretyData.enqueueAirlineForRegistration(newAirline, msg.sender);
+            uint256 requiredVotes = (flightSuretyData.numberOfRegisteredAirlines() / 2) + 1;
+            if (flightSuretyData.votesForAirline(newAirline) >= requiredVotes) {
+                flightSuretyData.registerAirline(newAirline, msg.sender);
+                success = true;
+                votes = flightSuretyData.votesForAirline(newAirline);
+            }
         }
-        //        Airline newAirline = airlines[newAirlineAccount];
-        //        if (newAirline.isRegistered) {
-        //            return;
-        //        }
-        //        if (newAirline.createdAt == 0) {
-        //            // really new airline, updating timestamp
-        //            newAirline.createdAt = block.timestamp;
-        //        }
-        //
-        //        if (numberOfRegisteredAirlines <= 4) {
-        //           newAirline.isRegistered = true;
-        //        } else {
-        //            if (airlines[tx.origin].votedFor) {
-        //                revert("This caller already voted for this airline");
-        //            }
-        //
-        //            if (airlines[tx.origin].createdAt > newAirline.createdAt) {
-        //                revert("Cannot vote for airlines that were queued before caller");
-        //            }
-        //
-        //            newAirline.votes.push(tx.origin);
-        //            airlines[tx.origin].votedFor = true;
-        //
-        //            uint256 requiredVotes = (numberOfRegisteredAirlines / 2) + 1;
-        //            if (newAirline.votes.length > requiredVotes) {
-        //                newAirline.isRegistered = true;
-        //            }
-        //        }
-        //
-        //        airlines[newAirlineAccount] = newAirline;
-        return (success, 0);
+        return (success, votes);
     }
 
-    function isRegisteredAirline(address airline) external view returns(bool) {
+    function isRegisteredAirline(address airline) external view returns (bool) {
         return flightSuretyData.isRegisteredAirline(airline);
     }
 
-    function isAuthorizedAirline() external view returns(bool) {
+    function isAuthorizedAirline() external view returns (bool) {
         return flightSuretyData.isAuthorizedAirline(msg.sender);
     }
 
     function fundInsurance() external payable {
         require(flightSuretyData.isRegisteredAirline(msg.sender), "Airline is not registered");
-        flightSuretyData.fundAirline.value(msg.value)(msg.sender);
+        flightSuretyData.fundAirline{value : msg.value}(msg.sender);
         if (flightSuretyData.getTotalFundsProvidedByAirline(msg.sender) >= 10 ether) {
             flightSuretyData.authorizeAirline(msg.sender);
         }
