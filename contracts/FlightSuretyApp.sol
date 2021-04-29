@@ -29,6 +29,17 @@ contract FlightSuretyApp is OperationalControl {
 
     mapping(address => Oracle) private oracles;
 
+    struct ResponseInfo {
+        address requester; // Account that requested status
+        bool isOpen; // If open, oracle responses are accepted
+        mapping(uint8 => address[]) responses; // Mapping key is the status code reported
+        mapping(address => bool) repliedOracles;
+    }
+
+    // Track all oracle responses
+    // Key = hash(index, flight, timestamp)
+    mapping(bytes32 => ResponseInfo) private oracleResponses;
+
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
@@ -76,7 +87,9 @@ contract FlightSuretyApp is OperationalControl {
      * @dev Add an airline to the registration queue
      *
      */
-    function registerAirline(address newAirline) requireIsOperational external returns (bool success, uint256 votes) {
+    function registerAirline(
+        address newAirline
+    ) requireIsOperational external returns (bool success, uint256 votes) {
         require(flightSuretyData.isRegisteredAirline(msg.sender), "Airline is not registered");
         require(flightSuretyData.isAuthorizedAirline(msg.sender), "Airline is not authorized");
         if (flightSuretyData.numberOfRegisteredAirlines() <= 4) {
@@ -85,7 +98,8 @@ contract FlightSuretyApp is OperationalControl {
             votes = 1;
         } else {
             uint256 newAirlineSignedUpAt = flightSuretyData.airlineSignedUpAt(newAirline);
-            require(newAirlineSignedUpAt == 0 || flightSuretyData.airlineSignedUpAt(msg.sender) <= newAirlineSignedUpAt,
+            require(newAirlineSignedUpAt == 0
+                || flightSuretyData.airlineSignedUpAt(msg.sender) <= newAirlineSignedUpAt,
                 "Cannot vote for earlier airlines");
             flightSuretyData.enqueueAirlineForRegistration(newAirline, msg.sender);
             uint256 requiredVotes = (flightSuretyData.numberOfRegisteredAirlines() / 2) + 1;
@@ -118,19 +132,34 @@ contract FlightSuretyApp is OperationalControl {
      * @dev Register a future flight for insuring.
      *
      */
-    function registerFlight(string memory flight, uint256 timestamp) requireAuthorizedAirline(msg.sender) external {
+    function registerFlight(
+        string memory flight,
+        uint256 timestamp
+    ) requireAuthorizedAirline(msg.sender) external {
         flightSuretyData.registerFlight(msg.sender, flight, timestamp);
     }
 
-    function isRegisteredFlight(address airline, string memory flight, uint256 timestamp) external view returns (bool) {
+    function isRegisteredFlight(
+        address airline,
+        string memory flight,
+        uint256 timestamp
+    ) external view returns (bool) {
         return flightSuretyData.isRegisteredFlight(airline, flight, timestamp);
     }
 
-    function getFlightStatus(address airline, string memory flight, uint256 timestamp) external view returns (uint8) {
+    function getFlightStatus(
+        address airline,
+        string memory flight,
+        uint256 timestamp
+    ) external view returns (uint8) {
         return flightSuretyData.getFlightStatus(airline, flight, timestamp);
     }
 
-    function buyInsurance(address airline, string memory flight, uint256 timestamp) requireAuthorizedAirline(airline) external payable {
+    function buyInsurance(
+        address airline,
+        string memory flight,
+        uint256 timestamp
+    ) requireAuthorizedAirline(airline) external payable {
         require(msg.value <= MAX_INSURANCE, "Cannot insure value this big");
         flightSuretyData.buyInsurance(airline, flight, timestamp, msg.sender);
     }
@@ -161,8 +190,52 @@ contract FlightSuretyApp is OperationalControl {
 
     function fetchFlightStatus(address airline, string memory flight, uint256 timestamp) external {
         uint8 index = getRandomIndex(msg.sender);
+        bytes32 key = getOracleRequestKey(index, airline, flight, timestamp);
+
+        oracleResponses[key] = ResponseInfo(msg.sender, true);
+
         emit OracleRequest(index, airline, flight, timestamp);
     }
+
+    function submitOracleResponse(
+        uint8 index,
+        address airline,
+        string memory flight,
+        uint256 timestamp,
+        uint8 statusCode
+    ) external {
+        require(
+            (oracles[msg.sender].indexes[0] == index) ||
+            (oracles[msg.sender].indexes[1] == index) ||
+            (oracles[msg.sender].indexes[2] == index),
+            "Index does not match oracle request"
+        );
+
+        bytes32 key = getOracleRequestKey(index, airline, flight, timestamp);
+
+        require(
+            oracleResponses[key].isOpen,
+            "Flight or timestamp do not match oracle request"
+        );
+
+        require(
+            !oracleResponses[key].repliedOracles[msg.sender],
+            "Oracle already replied to this request");
+
+        oracleResponses[key].responses[statusCode].push(msg.sender);
+
+        emit OracleReport(airline, flight, timestamp, statusCode);
+
+        if (oracleResponses[key].responses[statusCode].length >= MIN_RESPONSES) {
+            oracleResponses[key].isOpen = false;
+            emit FlightStatusInfo(airline, flight, timestamp, statusCode);
+            // Handle flight status as appropriate
+            processFlightStatus(airline, flight, timestamp, statusCode);
+
+        }
+
+    }
+
 
     function generateIndexes(address account) internal returns (uint8[3] memory) {
         uint8[3] memory indexes;
@@ -206,5 +279,23 @@ contract FlightSuretyApp is OperationalControl {
         return random;
     }
 
+    function getOracleRequestKey(
+        uint8 index,
+        address airline,
+        string memory flight,
+        uint256 timestamp
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(index, airline, flight, timestamp));
+    }
+
+    function processFlightStatus(
+        address airline,
+        string memory flight,
+        uint256 timestamp,
+        uint8 statusCode
+    ) internal pure {
+        // TODO: Continue here
+
+    }
 
 }
