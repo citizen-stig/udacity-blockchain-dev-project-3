@@ -22,6 +22,23 @@ contract FlightSuretyData is OperationalControl {
     mapping(address => Airline) private airlines;
     uint256 public numberOfRegisteredAirlines;
 
+    // Flight status codes
+    uint8 private constant STATUS_CODE_UNKNOWN = 0;
+    uint8 private constant STATUS_CODE_ON_TIME = 10;
+    uint8 private constant STATUS_CODE_LATE_AIRLINE = 20;
+    uint8 private constant STATUS_CODE_LATE_WEATHER = 30;
+    uint8 private constant STATUS_CODE_LATE_TECHNICAL = 40;
+    uint8 private constant STATUS_CODE_LATE_OTHER = 50;
+
+    struct Flight {
+        bool isRegistered;
+        uint8 statusCode;
+        uint256 updatedTimestamp;
+        address airline;
+    }
+
+    mapping(bytes32 => Flight) private flights;
+
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
@@ -101,22 +118,26 @@ contract FlightSuretyData is OperationalControl {
         return airlines[airline].fundsProvided;
     }
 
-    /**
-     * @dev Buy insurance for a flight
-     *
-     */
-    function buy() external payable {}
+    function getFlightKey(address airline, string memory flight, uint256 timestamp) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(airline, flight, timestamp));
+    }
 
-    /**
-     *  @dev Credits payouts to insurees
-     */
-    function creditInsurees() external pure {}
+    function registerFlight(address airline, string memory flight, uint256 timestamp) requireAuthorizedCaller external {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        flights[key].isRegistered = true;
+        flights[key].airline = airline;
+        flights[key].updatedTimestamp = block.timestamp;
+    }
 
-    /**
-     *  @dev Transfers eligible payout funds to insuree
-     *
-     */
-    function pay() external pure {}
+    function isRegisteredFlight(address airline, string memory flight, uint256 timestamp) external view returns(bool) {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        return flights[key].isRegistered;
+    }
+
+    function getFlightStatus(address airline, string memory flight, uint256 timestamp) external view returns(uint8) {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        return flights[key].statusCode;
+    }
 
     /**
      * @dev Initial funding for the insurance. Unless there are too many delayed flights
@@ -124,16 +145,9 @@ contract FlightSuretyData is OperationalControl {
      *
      */
     function fund() public payable {
-
     }
 
-    function getFlightKey(
-        address airline,
-        string memory flight,
-        uint256 timestamp
-    ) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(airline, flight, timestamp));
-    }
+
 
     /**
      * @dev Fallback function for funding smart contract.
