@@ -1,7 +1,7 @@
 const webpack = require('webpack')
 const path = require('path')
 const nodeExternals = require('webpack-node-externals')
-const StartServerPlugin = require('start-server-webpack-plugin')
+const runScript = require('run-script-webpack-plugin');
 
 module.exports = {
     entry: [
@@ -21,8 +21,7 @@ module.exports = {
         }]
     },
     plugins: [
-        new StartServerPlugin('server.js'),
-        new webpack.NamedModulesPlugin(),
+        new runScript.RunScriptWebpackPlugin({name: 'server.js'}),
         new webpack.HotModuleReplacementPlugin(),
         new webpack.NoEmitOnErrorsPlugin(),
         new webpack.DefinePlugin({
