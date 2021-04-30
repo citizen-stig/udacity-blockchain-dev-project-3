@@ -188,6 +188,14 @@ contract FlightSuretyApp is OperationalControl {
         return oracles[msg.sender].indexes;
     }
 
+    event DebugOracleHandles(
+        uint8 index,
+        address airline,
+        string flight,
+        uint256 timestamp,
+        bytes32 key,
+        string way);
+
     function fetchFlightStatus(address airline, string memory flight, uint256 timestamp) external {
         uint8 index = getRandomIndex(msg.sender);
         bytes32 key = getOracleRequestKey(index, airline, flight, timestamp);
@@ -195,7 +203,9 @@ contract FlightSuretyApp is OperationalControl {
         oracleResponses[key] = ResponseInfo(msg.sender, true);
 
         emit OracleRequest(index, airline, flight, timestamp);
+        emit DebugOracleHandles(index, airline, flight, timestamp, key, "out");
     }
+
 
     function submitOracleResponse(
         uint8 index,
@@ -212,7 +222,7 @@ contract FlightSuretyApp is OperationalControl {
         );
 
         bytes32 key = getOracleRequestKey(index, airline, flight, timestamp);
-
+        emit DebugOracleHandles(index, airline, flight, timestamp, key, "in");
         require(
             oracleResponses[key].isOpen,
             "Flight or timestamp do not match oracle request"
@@ -227,11 +237,10 @@ contract FlightSuretyApp is OperationalControl {
         emit OracleReport(airline, flight, timestamp, statusCode);
 
         if (oracleResponses[key].responses[statusCode].length >= MIN_RESPONSES) {
-            oracleResponses[key].isOpen = false;
+//            oracleResponses[key].isOpen = false;
             emit FlightStatusInfo(airline, flight, timestamp, statusCode);
             // Handle flight status as appropriate
             processFlightStatus(airline, flight, timestamp, statusCode);
-
         }
 
     }
