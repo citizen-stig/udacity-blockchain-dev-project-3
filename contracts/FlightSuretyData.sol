@@ -147,7 +147,23 @@ contract FlightSuretyData is OperationalControl {
 
     function buyInsurance(address airline, string memory flight, uint256 timestamp, address passenger) requireAuthorizedCaller external payable {
         bytes32 key = getFlightKey(airline, flight, timestamp);
+        // TODO: check if multiple calls
         flights[key].insurances.push(Insurance(passenger, msg.value));
+    }
+    function getInsuranceBalance(
+        address airline,
+        string memory flight,
+        uint256 timestamp,
+        address passenger
+    ) external view returns(uint256 insuranceAmount) {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        for (uint i = 0; i < flights[key].insurances.length; i++) {
+            if (flights[key].insurances[i].passenger == passenger) {
+                insuranceAmount = flights[key].insurances[i].amount;
+                break;
+            }
+        }
+        return insuranceAmount;
     }
 
 
@@ -159,6 +175,13 @@ contract FlightSuretyData is OperationalControl {
             balances[insurance.passenger] += insurance.amount * 100 / paybackRatio;
             //            flights[key].insurances[i].isRefunded = true;
         }
+    }
+
+    function withdraw(address payable passenger) requireAuthorizedCaller external {
+        require(balances[passenger] > 0, "No funds to withdraw");
+        balances[passenger] = 0;
+        (bool success, ) = passenger.call{value: balances[passenger]}("");
+        require(success, "Transfer failed.");
     }
 
     function getFlightKey(address airline, string memory flight, uint256 timestamp) internal pure returns (bytes32) {

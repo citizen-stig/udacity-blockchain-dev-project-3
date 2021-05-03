@@ -1,4 +1,3 @@
-const web3 = require('web3');
 const Test = require('../config/testConfig.js');
 
 contract('FlightSurety: oracles', async (accounts) => {
@@ -57,18 +56,18 @@ contract('FlightSurety: oracles', async (accounts) => {
         let flight = 'KL1395'; // Amsterdam - Saint Petersburg
         let timestamp = Math.floor(Date.now() / 1000);
         let index;
-        let oracleRequestEvenEmited;
+        let oracleRequestEvenEmitted;
         before(async () => {
             let event = config.flightSuretyApp.OracleRequest();
             event.on('data', e => {
-                oracleRequestEvenEmited = true;
+                oracleRequestEvenEmitted = true;
                 index = e.args.index.toNumber();
             });
         });
 
         it('emits event for oracle request', async function () {
             await config.flightSuretyApp.fetchFlightStatus(airline, flight, timestamp);
-            assert.isTrue(oracleRequestEvenEmited);
+            assert.isTrue(oracleRequestEvenEmitted);
         });
         it('accepts response only from expected oracles', async function() {
             for (let i = 1; i < TEST_ORACLES_COUNT; i++) {

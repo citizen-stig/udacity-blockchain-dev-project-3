@@ -67,6 +67,12 @@ contract FlightSuretyApp is OperationalControl {
         uint8 status
     );
 
+    event FlightRefunded(
+        address airline,
+        string flight,
+        uint256 timestamp
+    );
+
     event OracleReport(
         address airline,
         string flight,
@@ -174,6 +180,18 @@ contract FlightSuretyApp is OperationalControl {
         flightSuretyData.buyInsurance(airline, flight, timestamp, msg.sender);
     }
 
+    function getInsuranceBalance(
+        address airline,
+        string memory flight,
+        uint256 timestamp
+    ) external view returns(uint256) {
+        return flightSuretyData.getInsuranceBalance(airline, flight, timestamp, msg.sender);
+    }
+
+    function withdraw() external {
+        flightSuretyData.withdraw(msg.sender);
+    }
+
 
     /**
      *
@@ -198,14 +216,6 @@ contract FlightSuretyApp is OperationalControl {
         return oracles[msg.sender].indexes;
     }
 
-    event DebugOracleHandles(
-        uint8 index,
-        address airline,
-        string flight,
-        uint256 timestamp,
-        bytes32 key,
-        string way);
-
     function fetchFlightStatus(address airline, string memory flight, uint256 timestamp) external {
         uint8 index = getRandomIndex(msg.sender);
         bytes32 key = getOracleRequestKey(index, airline, flight, timestamp);
@@ -213,7 +223,6 @@ contract FlightSuretyApp is OperationalControl {
         oracleResponses[key] = ResponseInfo(msg.sender, true);
 
         emit OracleRequest(index, airline, flight, timestamp);
-        emit DebugOracleHandles(index, airline, flight, timestamp, key, "out");
     }
 
 
@@ -232,7 +241,6 @@ contract FlightSuretyApp is OperationalControl {
         );
 
         bytes32 key = getOracleRequestKey(index, airline, flight, timestamp);
-        emit DebugOracleHandles(index, airline, flight, timestamp, key, "in");
         require(
             oracleResponses[key].isOpen,
             "Flight or timestamp do not match oracle request"
@@ -318,6 +326,7 @@ contract FlightSuretyApp is OperationalControl {
         flightSuretyData.updateFlightStatus(airline, flight, timestamp, statusCode);
         if (statusCode == STATUS_CODE_LATE_AIRLINE) {
             flightSuretyData.refundFlight(airline, flight, timestamp, PAYBACK_RATIO);
+            emit FlightRefunded(airline, flight, timestamp);
         }
     }
 

@@ -1,4 +1,3 @@
-const web3 = require('web3');
 const Test = require('../config/testConfig.js');
 
 contract('FlightSurety: airlines', async (accounts) => {
@@ -87,15 +86,89 @@ contract('FlightSurety: airlines', async (accounts) => {
         let timestamp = Math.floor(+new Date() / 1000) + (86400 * 2);
         let airline;
         let passenger = accounts[11];
+        let oracles = accounts.slice(15, 30);
 
-        before("register flight", async () => {
+        before('register flight', async () => {
             airline = config.owner;
             await config.flightSuretyApp.registerFlight(flightNumber, timestamp, {from: airline});
+
+            let fee = web3.utils.toWei("1", "ether");
+            let oracleRequestEvent = config.flightSuretyApp.OracleRequest();
+            await Promise.all(oracles.map(async oracle => {
+                await config.flightSuretyApp.registerOracle({from: oracle, value: fee});
+                let indexes = await config.flightSuretyApp.getMyIndexes.call({from: oracle});
+                indexes = indexes.map(i => i.toNumber());
+
+                oracleRequestEvent.on('data', async e => {
+                    let index = e.args.index.toNumber();
+                    if (indexes.includes(index)) {
+                        console.log("Submitting status");
+                        await config.flightSuretyApp.submitOracleResponse(
+                            index,
+                            airline,
+                            flightNumber,
+                            timestamp,
+                            20,
+                            {from: oracle});
+                    }
+                });
+            }));
+
         });
 
         it("can buy insurance", async function() {
             await config.flightSuretyApp.buyInsurance(
                 airline, flightNumber, timestamp, {from: passenger, value: web3.utils.toWei("0.4", "ether")});
+            let balance = await config.flightSuretyApp.getInsuranceBalance.call(airline, flightNumber, timestamp, {from: passenger});
+            console.log("~+_+_+_~+_~+_~~+_~+_");
+            console.log(balance.toNumber());
+            console.log("~+_+_+_~+_~+_~~+_~+_");
         });
+
+        it('cannot withdraw funds back before flight');
+
+        it('can withdraw funds if flight got delayed because of airline', async function(done) {
+            let balanceBefore = await web3.eth.getBalance(passenger);
+            console.log('----------------------');
+            console.log(balanceBefore);
+            done();
+            // let flightStatusEvent = config.flightSuretyApp.FlightRefunded();
+            // let balanceAfter;
+            // flightStatusEvent.on('data', async e => {
+            //     console.log('Checking flight ')
+            //     console.log(e);
+            //     await config.flightSuretyApp.withdraw({from: passenger});
+            //     balanceAfter = await web3.eth.getBalance(passenger);
+            //     console.log("AFTER");
+            //     console.log(balanceAfter);
+            // });
+            // await config.flightSuretyApp.fetchFlightStatus(airline, flightNumber, timestamp);
+
+            // await config.flightSuretyData.refundFlight(
+            //     airline, flightNumber, timestamp, 150,
+            //     {from: config.flightSuretyApp.address});
+            // console.log("Withdraw");
+            // await config.flightSuretyApp.withdraw();
+            // let balanceAfter = await web3.eth.getBalance(passenger);
+            // console.log(balanceAfter);
+
+
+
+            let tries = 0;
+            let waiting = setInterval(async () => {
+                console.log(tries);
+                tries += 1;
+                if (balanceAfter !== undefined) {
+                    console.log("FINALLLY");
+                    clearInterval(waiting);
+                    done();
+                } else if (tries > 100) {
+                    clearInterval(waiting);
+                    assert.isTrue(false);
+                }
+
+            }, 100);
+        });
+
     })
 });
