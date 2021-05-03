@@ -14,7 +14,6 @@ const fundFee = web3.utils.toWei("10.5", "ether");
 
 // oracle is the object with address and pk from oracles.json
 const registerOracle = (oracle) => {
-    console.log(oracle.pk);
     const account = web3.eth.accounts.privateKeyToAccount(oracle.pk);
     console.log(`Registering oracle ${oracle.address}..`);
     // const oracleData = {account: account};
@@ -83,10 +82,10 @@ const handleOracleRequest = ({account, indexes}) => {
             // Choosing status
             let statusCode = getStatus(index, airline, flight, timestamp);
             console.log(`Oracle ${account.address} sends: `, {
-                index: sendingIndex,
+                index,
                 airline,
                 flight,
-                timestamp: sendingTimestamp,
+                timestamp,
                 statusCode});
             flightSuretyApp.methods
                 .submitOracleResponse(index, airline, flight, timestamp, statusCode)
@@ -107,13 +106,6 @@ console.log("All Oracles registered...")
 
 
 flightSuretyApp.events.OracleRequest({
-    fromBlock: 0
-}, function (error, event) {
-    if (error) console.log(error)
-    console.log(event)
-});
-
-flightSuretyApp.events.DebugOracleHandles({
     fromBlock: 0
 }, function (error, event) {
     if (error) console.log(error)

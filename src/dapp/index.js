@@ -22,12 +22,14 @@ import './flightsurety.css';
             // Write transaction
             contract.fetchFlightStatus(flight, (error, result) => {
                 display('Oracles', 'Trigger oracles', [{
-                    label: 'Fetch Flight Status',
+                    label: 'Flight Status Request',
                     error: error,
                     value: result.flight + ' ' + result.timestamp
                 }]);
             });
         })
+
+
     });
 })();
 
