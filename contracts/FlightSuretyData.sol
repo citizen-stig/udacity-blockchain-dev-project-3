@@ -22,18 +22,11 @@ contract FlightSuretyData is OperationalControl {
     mapping(address => Airline) private airlines;
     uint256 public numberOfRegisteredAirlines;
 
-    // Flight status codes
-    uint8 private constant STATUS_CODE_UNKNOWN = 0;
-    uint8 private constant STATUS_CODE_ON_TIME = 10;
-    uint8 private constant STATUS_CODE_LATE_AIRLINE = 20;
-    uint8 private constant STATUS_CODE_LATE_WEATHER = 30;
-    uint8 private constant STATUS_CODE_LATE_TECHNICAL = 40;
-    uint8 private constant STATUS_CODE_LATE_OTHER = 50;
 
     struct Insurance {
         address passenger;
         uint256 amount;
-//        bool isRefunded;
+        //        bool isRefunded;
     }
 
     struct Flight {
@@ -138,6 +131,13 @@ contract FlightSuretyData is OperationalControl {
     function isRegisteredFlight(address airline, string memory flight, uint256 timestamp) external view returns (bool) {
         bytes32 key = getFlightKey(airline, flight, timestamp);
         return flights[key].isRegistered;
+
+    }
+
+    function updateFlightStatus(address airline, string memory flight, uint256 timestamp, uint8 statusCode) requireAuthorizedCaller external {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        flights[key].updatedTimestamp = block.timestamp;
+        flights[key].statusCode = statusCode;
     }
 
     function getFlightStatus(address airline, string memory flight, uint256 timestamp) external view returns (uint8) {
@@ -150,13 +150,14 @@ contract FlightSuretyData is OperationalControl {
         flights[key].insurances.push(Insurance(passenger, msg.value));
     }
 
+
     function refundFlight(address airline, string memory flight, uint256 timestamp, uint paybackRatio) requireAuthorizedCaller external {
         bytes32 key = getFlightKey(airline, flight, timestamp);
 
         for (uint i = 0; i < flights[key].insurances.length; i++) {
             Insurance memory insurance = flights[key].insurances[i];
             balances[insurance.passenger] += insurance.amount * 100 / paybackRatio;
-//            flights[key].insurances[i].isRefunded = true;
+            //            flights[key].insurances[i].isRefunded = true;
         }
     }
 

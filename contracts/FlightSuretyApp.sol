@@ -22,6 +22,8 @@ contract FlightSuretyApp is OperationalControl {
     // Number of oracles that must respond for valid status
     uint256 private constant MIN_RESPONSES = 3;
 
+    uint256 private constant PAYBACK_RATIO = 150;  // Percent
+
     struct Oracle {
         bool isRegistered;
         uint8[3] indexes;
@@ -39,6 +41,14 @@ contract FlightSuretyApp is OperationalControl {
     // Track all oracle responses
     // Key = hash(index, flight, timestamp)
     mapping(bytes32 => ResponseInfo) private oracleResponses;
+
+    // Flight status codes
+    uint8 private constant STATUS_CODE_UNKNOWN = 0;
+    uint8 private constant STATUS_CODE_ON_TIME = 10;
+    uint8 private constant STATUS_CODE_LATE_AIRLINE = 20;
+    uint8 private constant STATUS_CODE_LATE_WEATHER = 30;
+    uint8 private constant STATUS_CODE_LATE_TECHNICAL = 40;
+    uint8 private constant STATUS_CODE_LATE_OTHER = 50;
 
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
@@ -236,8 +246,9 @@ contract FlightSuretyApp is OperationalControl {
 
         emit OracleReport(airline, flight, timestamp, statusCode);
 
-        if (oracleResponses[key].responses[statusCode].length >= MIN_RESPONSES) {
-//            oracleResponses[key].isOpen = false;
+        if (oracleResponses[key].responses[statusCode].length >= MIN_RESPONSES
+            && flightSuretyData.getFlightStatus(airline, flight, timestamp) == STATUS_CODE_UNKNOWN) {
+            //            oracleResponses[key].isOpen = false;
             emit FlightStatusInfo(airline, flight, timestamp, statusCode);
             // Handle flight status as appropriate
             processFlightStatus(airline, flight, timestamp, statusCode);
@@ -302,9 +313,12 @@ contract FlightSuretyApp is OperationalControl {
         string memory flight,
         uint256 timestamp,
         uint8 statusCode
-    ) internal pure {
-        // TODO: Continue here
-
+    ) internal {
+        require(flightSuretyData.getFlightStatus(airline, flight, timestamp) == STATUS_CODE_UNKNOWN, "This flight was processed already");
+        flightSuretyData.updateFlightStatus(airline, flight, timestamp, statusCode);
+        if (statusCode == STATUS_CODE_LATE_AIRLINE) {
+            flightSuretyData.refundFlight(airline, flight, timestamp, PAYBACK_RATIO);
+        }
     }
 
 }

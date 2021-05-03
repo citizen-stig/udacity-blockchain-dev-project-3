@@ -1,9 +1,12 @@
-dev:
-	truffle deploy
-	npm run dev
+.PHONY: all test clean
+
+init:
+	npm install
+	npm run deploy-contracts
 
 test:
-	truffle test --stacktrace
+	npm run test
 
-run-ganache:
+ganache:
 	ganache-cli -a 100 -e 10000 -m "candy maple cake sugar pudding cream honey rich smooth crumble sweet treat"
+
