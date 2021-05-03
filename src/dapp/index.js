@@ -15,6 +15,8 @@ import './flightsurety.css';
         });
 
 
+        populateFlights(contract.flights);
+
         // User-submitted transaction
         DOM.elid('submit-oracle').addEventListener('click', () => {
             let flight = DOM.elid('flight-number').value;
@@ -28,9 +30,32 @@ import './flightsurety.css';
             });
         })
 
+        DOM.elid('buy-insurance').addEventListener('click', () => {
+            let flight = DOM.elid('flight-number').value;
+            // Write transaction
+            contract.buyInsurance(flight, "0.5", (error, result) => {
+                console.log("Bought insurances", result);
+                display('Insurance', 'Bought insurance', [{
+                    label: 'Flight Status Request',
+                    error: error,
+                    value: result.flight + ' ' + result.timestamp
+                }]);
+            });
+        })
+
 
     });
 })();
+
+function populateFlights(flights) {
+    // let insuranceSelect = DOM.elid('insurance-flight')
+    let flightStatusSelect = DOM.elid('flight-number');
+    Object.keys(flights).forEach(flight => {
+        // insuranceSelect.appendChild(DOM.makeElement('option', {value: flight}, flight));
+        flightStatusSelect.appendChild(DOM.makeElement('option', {value: flight}, flight));
+
+    });
+}
 
 
 function display(title, description, results) {
