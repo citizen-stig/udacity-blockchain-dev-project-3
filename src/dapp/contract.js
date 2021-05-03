@@ -6,7 +6,9 @@ export default class Contract {
     constructor(network, callback) {
 
         let config = Config[network];
-        this.web3 = new Web3(new Web3.providers.HttpProvider(config.url));
+        // this.web3 = new Web3(new Web3.providers.HttpProvider(config.url));
+        this.web3 = new Web3(window.ethereum);
+        window.ethereum.request({ method: 'eth_requestAccounts' });
         this.flightSuretyApp = new this.web3.eth.Contract(FlightSuretyApp.abi, config.appAddress);
         this.initialize(callback);
         this.owner = null;
@@ -37,7 +39,7 @@ export default class Contract {
         let self = this;
         self.flightSuretyApp.methods
             .isOperational()
-            .call({from: self.owner}, callback);
+            .call(callback);
     }
 
     fetchFlightStatus(flight, callback) {
@@ -49,8 +51,13 @@ export default class Contract {
         }
         self.flightSuretyApp.methods
             .fetchFlightStatus(payload.airline, payload.flight, payload.timestamp)
-            .send({from: self.owner}, (error, result) => {
+            .send((error, result) => {
                 callback(error, payload);
             });
+    }
+
+    registerAirline(address, callback) {
+        let self = this;
+
     }
 }
