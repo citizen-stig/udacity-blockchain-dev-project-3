@@ -8,31 +8,19 @@ export default class Contract {
         let config = Config[network];
         // this.web3 = new Web3(new Web3.providers.HttpProvider(config.url));
         this.web3 = new Web3(window.ethereum);
-        window.ethereum.request({ method: 'eth_requestAccounts' });
-        this.flightSuretyApp = new this.web3.eth.Contract(FlightSuretyApp.abi, config.appAddress);
-        this.initialize(callback);
-        this.owner = null;
-        this.airlines = [];
-        this.passengers = [];
-    }
-
-    initialize(callback) {
-        this.web3.eth.getAccounts((error, accts) => {
-
-            this.owner = accts[0];
-
-            let counter = 1;
-
-            while (this.airlines.length < 5) {
-                this.airlines.push(accts[counter++]);
-            }
-
-            while (this.passengers.length < 5) {
-                this.passengers.push(accts[counter++]);
-            }
-
-            callback();
-        });
+        let self = this;
+        window.ethereum.request({ method: 'eth_requestAccounts' })
+            .then(accounts => {
+                self.accounts = accounts;
+                self.account = accounts[0];
+                self.flightSuretyApp = new this.web3.eth.Contract(FlightSuretyApp.abi, config.appAddress);
+                console.log("BOOM");
+                callback();
+            });
+        // this.initialize(callback);
+        // this.owner = null;
+        // this.airlines = [];
+        // this.passengers = [];
     }
 
     isOperational(callback) {
@@ -45,13 +33,14 @@ export default class Contract {
     fetchFlightStatus(flight, callback) {
         let self = this;
         let payload = {
-            airline: self.airlines[0],
+            airline: self.account,
             flight: flight,
             timestamp: Math.floor(Date.now() / 1000)
         }
+        console.log("Request flight status", payload);
         self.flightSuretyApp.methods
             .fetchFlightStatus(payload.airline, payload.flight, payload.timestamp)
-            .send((error, result) => {
+            .send({from: self.account}, (error, result) => {
                 callback(error, payload);
             });
     }
