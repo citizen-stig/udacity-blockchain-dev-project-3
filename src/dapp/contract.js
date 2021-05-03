@@ -1,5 +1,5 @@
 import FlightSuretyApp from '../../build/contracts/FlightSuretyApp.json';
-import Config from './config.json';
+import Config from '../../config/contract.json';
 import Web3 from 'web3';
 
 export default class Contract {
