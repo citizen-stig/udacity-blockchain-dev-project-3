@@ -177,7 +177,7 @@ contract FlightSuretyApp is OperationalControl {
         uint256 timestamp
     ) requireAuthorizedAirline(airline) external payable {
         require(msg.value <= MAX_INSURANCE, "Cannot insure value this big");
-        flightSuretyData.buyInsurance(airline, flight, timestamp, msg.sender);
+        flightSuretyData.buyInsurance{value : msg.value}(airline, flight, timestamp, msg.sender);
     }
 
     function getInsuranceBalance(

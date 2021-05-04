@@ -72,7 +72,7 @@ contract('FlightSurety: airlines', async (accounts) => {
     describe('Flight registering', async function () {
         let flightNumber = "815";
         let timestamp = Math.floor(+new Date() / 1000) + 86400; // tomorrow
-        it('allows authorized airline register flight', async function() {
+        it('allows authorized airline register flight', async function () {
             let statusBefore = await config.flightSuretyApp.isRegisteredFlight(config.owner, flightNumber, timestamp);
             assert.isFalse(statusBefore);
             await config.flightSuretyApp.registerFlight(flightNumber, timestamp, {from: config.owner});
@@ -81,12 +81,13 @@ contract('FlightSurety: airlines', async (accounts) => {
         });
     });
 
-    describe('Passengers', async function() {
+    describe('Passengers', async function () {
         let flightNumber = "815";
         let timestamp = Math.floor(+new Date() / 1000) + (86400 * 2);
         let airline;
         let passenger = accounts[11];
-        let oracles = accounts.slice(15, 30);
+        let oracles = accounts.slice(15, 25);
+        let originalTimeout;
 
         before('register flight', async () => {
             airline = config.owner;
@@ -102,7 +103,6 @@ contract('FlightSurety: airlines', async (accounts) => {
                 oracleRequestEvent.on('data', async e => {
                     let index = e.args.index.toNumber();
                     if (indexes.includes(index)) {
-                        console.log("Submitting status");
                         await config.flightSuretyApp.submitOracleResponse(
                             index,
                             airline,
@@ -116,59 +116,34 @@ contract('FlightSurety: airlines', async (accounts) => {
 
         });
 
-        it("can buy insurance", async function() {
+        it("can buy insurance", async function () {
             await config.flightSuretyApp.buyInsurance(
-                airline, flightNumber, timestamp, {from: passenger, value: web3.utils.toWei("0.4", "ether")});
+                airline, flightNumber, timestamp, {from: passenger, value: insuranceAmount});
             let balance = await config.flightSuretyApp.getInsuranceBalance.call(airline, flightNumber, timestamp, {from: passenger});
-            console.log("~+_+_+_~+_~+_~~+_~+_");
-            console.log(balance.toNumber());
-            console.log("~+_+_+_~+_~+_~~+_~+_");
+            assert.equal(insuranceAmount, balance);
         });
 
         it('cannot withdraw funds back before flight');
 
-        it('can withdraw funds if flight got delayed because of airline', async function(done) {
-            let balanceBefore = await web3.eth.getBalance(passenger);
-            console.log('----------------------');
-            console.log(balanceBefore);
-            done();
-            // let flightStatusEvent = config.flightSuretyApp.FlightRefunded();
-            // let balanceAfter;
-            // flightStatusEvent.on('data', async e => {
-            //     console.log('Checking flight ')
-            //     console.log(e);
-            //     await config.flightSuretyApp.withdraw({from: passenger});
-            //     balanceAfter = await web3.eth.getBalance(passenger);
-            //     console.log("AFTER");
-            //     console.log(balanceAfter);
-            // });
-            // await config.flightSuretyApp.fetchFlightStatus(airline, flightNumber, timestamp);
-
-            // await config.flightSuretyData.refundFlight(
-            //     airline, flightNumber, timestamp, 150,
-            //     {from: config.flightSuretyApp.address});
-            // console.log("Withdraw");
-            // await config.flightSuretyApp.withdraw();
-            // let balanceAfter = await web3.eth.getBalance(passenger);
-            // console.log(balanceAfter);
-
-
-
-            let tries = 0;
-            let waiting = setInterval(async () => {
-                console.log(tries);
-                tries += 1;
-                if (balanceAfter !== undefined) {
-                    console.log("FINALLLY");
-                    clearInterval(waiting);
+        it('can withdraw funds if flight got delayed because of airline', function (done) {
+            (async () => {
+                let flightStatusEvent = config.flightSuretyApp.FlightRefunded();
+                let balanceAfter;
+                flightStatusEvent.on('data', async e => {
+                    let balanceBefore = await web3.eth.getBalance(passenger);
+                    console.log({before: balanceBefore});
+                    let result = await config.flightSuretyApp.withdraw({from: passenger, gasPrice: 0});
+                    console.log(result);
+                    balanceAfter = await web3.eth.getBalance(passenger);
+                    console.log({after: balanceAfter});
+                    console.log({diff: balanceAfter - balanceBefore});
+                    let increase = parseFloat(web3.utils.fromWei(String(balanceAfter - balanceBefore)));
+                    assert.isTrue(increase - 0.6 < 0.000001);
                     done();
-                } else if (tries > 100) {
-                    clearInterval(waiting);
-                    assert.isTrue(false);
-                }
-
-            }, 100);
-        });
+                });
+                await config.flightSuretyApp.fetchFlightStatus(airline, flightNumber, timestamp);
+            })();
+        }, 5000);
 
     })
 });

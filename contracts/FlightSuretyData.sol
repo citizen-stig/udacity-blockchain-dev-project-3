@@ -45,6 +45,12 @@ contract FlightSuretyData is OperationalControl {
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
+    event InsuranceBought(
+        string flight,
+        uint256 timestamp,
+        address customer,
+        uint256 value
+    );
 
     constructor() public {
         airlines[msg.sender].isRegistered = true;
@@ -149,13 +155,15 @@ contract FlightSuretyData is OperationalControl {
         bytes32 key = getFlightKey(airline, flight, timestamp);
         // TODO: check if multiple calls
         flights[key].insurances.push(Insurance(passenger, msg.value));
+        emit InsuranceBought(flight, timestamp, passenger, msg.value);
     }
+
     function getInsuranceBalance(
         address airline,
         string memory flight,
         uint256 timestamp,
         address passenger
-    ) external view returns(uint256 insuranceAmount) {
+    ) external view returns (uint256 insuranceAmount) {
         bytes32 key = getFlightKey(airline, flight, timestamp);
         for (uint i = 0; i < flights[key].insurances.length; i++) {
             if (flights[key].insurances[i].passenger == passenger) {
@@ -166,21 +174,21 @@ contract FlightSuretyData is OperationalControl {
         return insuranceAmount;
     }
 
-
-    function refundFlight(address airline, string memory flight, uint256 timestamp, uint paybackRatio) requireAuthorizedCaller external {
-        bytes32 key = getFlightKey(airline, flight, timestamp);
-
-        for (uint i = 0; i < flights[key].insurances.length; i++) {
-            Insurance memory insurance = flights[key].insurances[i];
-            balances[insurance.passenger] += insurance.amount * 100 / paybackRatio;
+    function refundFlight(address airline, string memory flightNumber, uint256 timestamp, uint paybackRatio) requireAuthorizedCaller external {
+        bytes32 key = getFlightKey(airline, flightNumber, timestamp);
+        Flight memory flight = flights[key];
+        for (uint i = 0; i < flight.insurances.length; i++) {
+            Insurance memory insurance = flight.insurances[i];
+            balances[insurance.passenger] += (insurance.amount * paybackRatio) / 100;
             //            flights[key].insurances[i].isRefunded = true;
         }
     }
 
     function withdraw(address payable passenger) requireAuthorizedCaller external {
         require(balances[passenger] > 0, "No funds to withdraw");
+        uint256 withdrawAmount = balances[passenger];
         balances[passenger] = 0;
-        (bool success, ) = passenger.call{value: balances[passenger]}("");
+        (bool success,) = passenger.call{value : withdrawAmount}("");
         require(success, "Transfer failed.");
     }
 
