@@ -20,34 +20,47 @@ export default class Contract {
         this.web3.eth.getAccounts((error, accounts) => {
 
             this.owner = accounts[0];
+            let counter = 1;
+            while (this.airlines.length < 4) {
+                let airline = accounts[counter++]
+                this.airlines.push(airline);
+            }
 
-            self.flightSuretyApp.methods
-                .fundInsurance()
-                .send({from: this.owner, value: Web3.utils.toWei("11", "ether")}, (error, something) => {
-                    let counter = 1;
-                    while (this.airlines.length < 5) {
-                        let airline = accounts[counter++]
-                        this.airlines.push(airline);
-                    }
+            const timestamp = Math.floor(Date.now() / 1000);
+            this.flights = {
+                KL1333: {"airline": this.airlines[0], timestamp},
+                "Oceanic 815": {"airline": this.airlines[1], timestamp},
+                LE7701: {"airline": this.airlines[0], timestamp},
+                AUL524: {"airline": this.airlines[0], timestamp},
+                PBD305: {"airline": this.airlines[0], timestamp},
+            }
 
+            console.log(this.flights);
 
-                    const timestamp = Math.floor(Date.now() / 1000);
-                    this.flights = {
-                        KL1333: {"airline": this.airlines[0], timestamp},
-                        "Oceanic 815": {"airline": this.airlines[1], timestamp},
-                        LE7701: {"airline": this.airlines[0], timestamp},
-                        AUL524: {"airline": this.airlines[0], timestamp},
-                        PBD305: {"airline": this.airlines[0], timestamp},
-                    }
-                    console.log(this.flights);
+            while (this.passengers.length < 5) {
+                this.passengers.push(accounts[counter++]);
+            }
 
-                    while (this.passengers.length < 5) {
-                        this.passengers.push(accounts[counter++]);
-                    }
-
-
+            let fund = Web3.utils.toWei("11", "ether");
+            console.log('Airlines: ', this.airlines);
+            Promise.all(this.airlines.map(airline => {
+                console.log("Registering airline", airline);
+                return self.flightSuretyApp.methods
+                    .registerAirline(airline)
+                    .send({from: this.owner})
+                    .then((result, error) => {
+                        console.log("Funding airline");
+                        console.log(result, error)
+                        return self.flightSuretyApp.methods
+                            .fundInsurance()
+                            .send({from: airline, value: fund})
+                    })
+            }))
+                .then(results => {
+                    console.log("Results of funding!")
+                    console.log(results);
                     callback();
-                });
+                })
         });
     }
 

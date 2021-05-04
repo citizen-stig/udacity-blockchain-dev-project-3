@@ -89,7 +89,7 @@ contract FlightSuretyApp is OperationalControl {
     }
 
     modifier requireAuthorizedAirline(address airline) {
-        require(flightSuretyData.isAuthorizedAirline(airline));
+        require(flightSuretyData.isAuthorizedAirline(airline), "Airline is not authorized");
         _;
     }
 
