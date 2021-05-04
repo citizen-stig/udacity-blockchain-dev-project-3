@@ -86,8 +86,8 @@ contract('FlightSurety: airlines', async (accounts) => {
         let timestamp = Math.floor(+new Date() / 1000) + (86400 * 2);
         let airline;
         let passenger = accounts[11];
-        let oracles = accounts.slice(15, 25);
-        let originalTimeout;
+        let oracles = accounts.slice(15, 30);
+        let insuranceAmount = web3.utils.toWei("0.4", "ether");
 
         before('register flight', async () => {
             airline = config.owner;
@@ -103,6 +103,7 @@ contract('FlightSurety: airlines', async (accounts) => {
                 oracleRequestEvent.on('data', async e => {
                     let index = e.args.index.toNumber();
                     if (indexes.includes(index)) {
+                        console.log("Submitting result");
                         await config.flightSuretyApp.submitOracleResponse(
                             index,
                             airline,
@@ -119,7 +120,8 @@ contract('FlightSurety: airlines', async (accounts) => {
         it("can buy insurance", async function () {
             await config.flightSuretyApp.buyInsurance(
                 airline, flightNumber, timestamp, {from: passenger, value: insuranceAmount});
-            let balance = await config.flightSuretyApp.getInsuranceBalance.call(airline, flightNumber, timestamp, {from: passenger});
+            let balance = await config.flightSuretyApp
+                .getInsuranceBalance.call(airline, flightNumber, timestamp, {from: passenger});
             assert.equal(insuranceAmount, balance);
         });
 
@@ -127,6 +129,7 @@ contract('FlightSurety: airlines', async (accounts) => {
 
         it('can withdraw funds if flight got delayed because of airline', function (done) {
             (async () => {
+                console.log("Start");
                 let flightStatusEvent = config.flightSuretyApp.FlightRefunded();
                 let balanceAfter;
                 flightStatusEvent.on('data', async e => {
