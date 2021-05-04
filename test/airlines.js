@@ -86,7 +86,7 @@ contract('FlightSurety: airlines', async (accounts) => {
         let timestamp = Math.floor(+new Date() / 1000) + (86400 * 2);
         let airline;
         let passenger = accounts[11];
-        let oracles = accounts.slice(15, 30);
+        let oracles = accounts.slice(15, 40);
         let insuranceAmount = web3.utils.toWei("0.4", "ether");
 
         before('register flight', async () => {
@@ -99,11 +99,11 @@ contract('FlightSurety: airlines', async (accounts) => {
                 await config.flightSuretyApp.registerOracle({from: oracle, value: fee});
                 let indexes = await config.flightSuretyApp.getMyIndexes.call({from: oracle});
                 indexes = indexes.map(i => i.toNumber());
-
-                oracleRequestEvent.on('data', async e => {
+                // console.log(indexes)
+                oracleRequestEvent.on('data', async function (e) {
                     let index = e.args.index.toNumber();
+                    // console.log(index)
                     if (indexes.includes(index)) {
-                        console.log("Submitting result");
                         await config.flightSuretyApp.submitOracleResponse(
                             index,
                             airline,
@@ -129,17 +129,17 @@ contract('FlightSurety: airlines', async (accounts) => {
 
         it('can withdraw funds if flight got delayed because of airline', function (done) {
             (async () => {
-                console.log("Start");
+                // console.log("Start");
                 let flightStatusEvent = config.flightSuretyApp.FlightRefunded();
                 let balanceAfter;
                 flightStatusEvent.on('data', async e => {
                     let balanceBefore = await web3.eth.getBalance(passenger);
-                    console.log({before: balanceBefore});
+                    // console.log({before: balanceBefore});
                     let result = await config.flightSuretyApp.withdraw({from: passenger, gasPrice: 0});
-                    console.log(result);
+                    // console.log(result);
                     balanceAfter = await web3.eth.getBalance(passenger);
-                    console.log({after: balanceAfter});
-                    console.log({diff: balanceAfter - balanceBefore});
+                    // console.log({after: balanceAfter});
+                    // console.log({diff: balanceAfter - balanceBefore});
                     let increase = parseFloat(web3.utils.fromWei(String(balanceAfter - balanceBefore)));
                     assert.isTrue(increase - 0.6 < 0.000001);
                     done();
