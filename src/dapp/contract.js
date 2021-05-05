@@ -47,33 +47,42 @@ export default class Contract {
                     .fundInsurance()
                     .send({from: owner, value: fund})
                     .then((result, error) => {
-                        console.log('Airlines: ', this.airlines);
                         Promise
-                            .all(this.airlines.map(airline => {
-                                console.log("Registering airline", airline);
-                                return self.flightSuretyApp.methods
-                                    .registerAirline(airline)
-                                    .send({from: self.owner})
-                                    .then((result, error) => {
-                                        console.log("Funding airline");
-                                        console.log(result, error)
-                                        return self.flightSuretyApp.methods
-                                            .fundInsurance()
-                                            .send({from: airline, value: fund})
+                            .all(
+                                self.airlines
+                                    .map(airline => {
+                                        return self.flightSuretyApp.methods.isRegisteredAirline()
+                                            .call({from: airline})
+                                            .then(isRegistered => {
+                                                return {airline, isRegistered};
+                                            });
+                                    }))
+                            .then(airlines => {
+                                Promise
+                                    .all(airlines
+                                        .filter(({airline, isRegistered}) => !isRegistered)
+                                        .map(({airline}) => {
+                                                return self.flightSuretyApp.methods
+                                                    .registerAirline(airline)
+                                                    .send({from: self.owner})
+                                                    .then((result, error) => {
+                                                        console.log("Funding airline");
+                                                        console.log(result, error)
+                                                        return self.flightSuretyApp.methods
+                                                            .fundInsurance()
+                                                            .send({from: airline, value: fund})
+                                                    })
+                                            }
+                                        ))
+                                    .then(result => {
+                                        console.log("All airlines are registered and funded");
+                                        callback();
                                     })
-                            }))
-                            .then(results => {
-                                console.log("Results of funding!")
-                                console.log(results);
-                                callback();
                             })
                     });
 
             }
-        )
-        ;
-
-
+        );
     }
 
     isOperational(callback) {
@@ -105,11 +114,13 @@ export default class Contract {
             timestamp: self.flights[flight].timestamp,
         }
         console.log("Buying insurance", payload);
+        const wei = Web3.utils.toWei(amount, "ether");
+        console.log("Amount: ", wei);
         self.flightSuretyApp.methods
             .buyInsurance(payload.airline, payload.flight, payload.timestamp)
             .send({
                 from: self.passengers[0],
-                value: Web3.utils.toWei(amount, "ether")
+                value: wei,
             }, (error, result) => {
                 console.log({error, result});
                 callback(error, payload)
