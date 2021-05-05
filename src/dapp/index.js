@@ -37,11 +37,22 @@ import './flightsurety.css';
             contract.buyInsurance(flight, "0.5", (error, result) => {
                 console.log("Bought insurances", result, error);
                 display('Insurance', 'Bought insurance', [{
-                    label: 'Flight Status Request',
+                    label: 'Insurance',
                     error: error,
-                    value: result.flight + ' ' + result.timestamp
+                    // value: result.flight + ' ' + result.timestamp
                 }]);
             });
+        })
+
+        DOM.elid('withdraw-insurance').addEventListener('click', () => {
+            contract.withdraw((error, result) => {
+                console.log("Withdraw", result, error);
+                display('Insurance withdrawal', 'Withdrawal funds', [{
+                    label: 'Yo',
+                    error: error,
+                }]);
+            })
+
         })
 
 

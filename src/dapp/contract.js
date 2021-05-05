@@ -122,10 +122,17 @@ export default class Contract {
             .send({
                 from: self.passengers[0],
                 value: wei,
+                gasLimit: 900000
             }, (error, result) => {
                 console.log("Buying insurance: Before callback")
                 console.log({error, result});
                 callback(error, payload)
             });
+    }
+
+    withdraw(callback) {
+        let self = this;
+        self.flightSuretyApp.methods.withdraw()
+            .send({from: self.passengers[0]}, callback)
     }
 }
