@@ -116,12 +116,14 @@ export default class Contract {
         console.log("Buying insurance", payload);
         const wei = Web3.utils.toWei(amount, "ether");
         console.log("Amount: ", wei);
+        console.log("Passenger", self.passengers[0]);
         self.flightSuretyApp.methods
             .buyInsurance(payload.airline, payload.flight, payload.timestamp)
             .send({
                 from: self.passengers[0],
                 value: wei,
             }, (error, result) => {
+                console.log("Buying insurance: Before callback")
                 console.log({error, result});
                 callback(error, payload)
             });

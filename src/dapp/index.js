@@ -32,9 +32,10 @@ import './flightsurety.css';
 
         DOM.elid('buy-insurance').addEventListener('click', () => {
             let flight = DOM.elid('flight-number').value;
+            console.log("User clicked 'Buy Insurance")
             // Write transaction
             contract.buyInsurance(flight, "0.5", (error, result) => {
-                console.log("Bought insurances", result);
+                console.log("Bought insurances", result, error);
                 display('Insurance', 'Bought insurance', [{
                     label: 'Flight Status Request',
                     error: error,
