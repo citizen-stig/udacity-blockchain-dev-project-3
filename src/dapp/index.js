@@ -61,7 +61,7 @@ import './flightsurety.css';
                 display('Available balance', 'Available for withdraw', [{
                     label: 'Balance',
                     error: error,
-                    value: result
+                    value: result + ' ETH'
                 }]);
             })
         });

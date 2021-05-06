@@ -146,7 +146,13 @@ export default class Contract {
     checkBalance(callback) {
         let self = this;
         self.flightSuretyApp.methods.getAvailableBalance()
-            .call({from: self.passengers[0]}, callback);
+            .call({from: self.passengers[0]}, (error, result) => {
+                if (error) {
+                    callback(error, result);
+                } else {
+                    callback(error, Web3.utils.fromWei(result, "ether"));
+                }
+            });
     }
 
     withdraw(callback) {
