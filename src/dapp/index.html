@@ -26,15 +26,19 @@
             <label class="form" for="flight-number">Flight</label>
             <select class="form-control" id="flight-number" name="insurance-flight">
             </select>
-            <button class="btn btn-primary" id="submit-oracle">Submit to Oracles</button>
+        </div>
+        <div>
+            <h2>Insurance</h2>
+            <div class="input-group mb-3">
+                <label class="form" for="insurance-amount">Amount ETH</label>
+                <input class="form-control" type="text" id="insurance-amount">
+                <button class="btn btn-primary" id="buy-insurance">Buy Insurance</button>
+            </div>
 
         </div>
-        <div class="input-group mb-3">
-            <label class="form" for="insurance-amount">Amount ETH</label>
-            <input class="form-control" type="text" id="insurance-amount">
-            <button class="btn btn-primary" id="buy-insurance">Buy Insurance</button>
-        </div>
         <div class="input-group mb-3 float-right">
+            <button class="btn btn-primary" id="submit-oracle">Submit to Oracles</button>
+            <button class="btn btn-primary" id="check-balance">Check Balance</button>
             <button class="btn btn-primary" id="withdraw-insurance">Withdraw</button>
         </div>
     </div>

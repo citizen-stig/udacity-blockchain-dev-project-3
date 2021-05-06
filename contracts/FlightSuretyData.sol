@@ -174,6 +174,12 @@ contract FlightSuretyData is OperationalControl {
         return insuranceAmount;
     }
 
+    function getAvailableBalance(
+        address passenger
+    ) external view returns (uint256 insuranceAmount) {
+        return balances[passenger];
+    }
+
     function refundFlight(address airline, string memory flightNumber, uint256 timestamp, uint paybackRatio) requireAuthorizedCaller external {
         bytes32 key = getFlightKey(airline, flightNumber, timestamp);
         Flight memory flight = flights[key];

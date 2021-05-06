@@ -188,6 +188,10 @@ contract FlightSuretyApp is OperationalControl {
         return flightSuretyData.getInsuranceBalance(airline, flight, timestamp, msg.sender);
     }
 
+    function getAvailableBalance() external view returns(uint256) {
+        return flightSuretyData.getAvailableBalance(msg.sender);
+    }
+
     function withdraw() external {
         flightSuretyData.withdraw(msg.sender);
     }

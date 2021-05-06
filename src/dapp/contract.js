@@ -4,15 +4,28 @@ import Web3 from 'web3';
 
 export default class Contract {
     constructor(network, callback) {
-
         let config = Config[network];
-        this.web3 = new Web3(new Web3.providers.HttpProvider(config.url));
+        this.web3 = new Web3(new Web3.providers.WebsocketProvider(config.url.replace('http', 'ws')));
         this.flightSuretyApp = new this.web3.eth.Contract(FlightSuretyApp.abi, config.appAddress);
         this.initialize(callback);
         this.owner = null;
         this.airlines = [];
         this.passengers = [];
-
+        // // Watch contract events
+        //     const STATUS_CODE_UNKNOWN = 0;
+        //     const STATUS_CODE_ON_TIME = 10;
+        //     const STATUS_CODE_LATE_AIRLINE = 20;
+        //     const STATUS_CODE_LATE_WEATHER = 30;
+        //     const STATUS_CODE_LATE_TECHNICAL = 40;
+        //     const STATUS_CODE_LATE_OTHER = 50;
+        this.statusMap = {
+            0: "UNKNOWN",
+            10: "ON_TIME",
+            20: "LATE_AIRLINE",
+            30: "LATE_WEATHER",
+            40: "LATE_TECHNICAL",
+            50: "LATE_OTHER",
+        }
     }
 
     initialize(callback) {
@@ -114,7 +127,7 @@ export default class Contract {
             timestamp: self.flights[flight].timestamp,
         }
         console.log("Buying insurance", payload);
-        const wei = Web3.utils.toWei(amount, "ether");
+        const wei = Web3.utils.toWei(amount.toString(), "ether");
         console.log("Amount: ", wei);
         console.log("Passenger", self.passengers[0]);
         self.flightSuretyApp.methods
@@ -130,9 +143,30 @@ export default class Contract {
             });
     }
 
+    checkBalance(callback) {
+        let self = this;
+        self.flightSuretyApp.methods.getAvailableBalance()
+            .call({from: self.passengers[0]}, callback);
+    }
+
     withdraw(callback) {
         let self = this;
         self.flightSuretyApp.methods.withdraw()
             .send({from: self.passengers[0]}, callback)
+    }
+
+    addFlightStatusListener(callback) {
+        let self = this;
+        self.flightSuretyApp.events.FlightStatusInfo({}, function (error, event) {
+            if (error) console.log(error)
+            if (error) {
+                callback(error, event);
+            } else {
+                let result = event.returnValues;
+                result.status_name = self.statusMap[event.returnValues.status];
+                callback(error, result);
+            }
+
+        });
     }
 }
