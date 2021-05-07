@@ -4,7 +4,6 @@ contract('FlightSurety: separation of concerns', async (accounts) => {
     let config;
     before('setup contract', async () => {
         config = await Test.Config(accounts);
-        await config.flightSuretyData.authorizeCaller(config.flightSuretyApp.address);
     });
 
     describe('Operational status control', async function () {

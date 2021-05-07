@@ -4,7 +4,7 @@ contract('FlightSurety: oracles', async (accounts) => {
 
     const TEST_ORACLES_COUNT = 15;
     let airline = accounts[1];
-    let oracles = accounts.slice(5);
+    let oracles = accounts.slice(51, 80);
     let oracleIndexes = {};
     let config;
 
@@ -18,7 +18,6 @@ contract('FlightSurety: oracles', async (accounts) => {
 
     before('setup contract', async () => {
         config = await Test.Config(accounts);
-        await config.flightSuretyData.authorizeCaller(config.flightSuretyApp.address);
 
         const fundFee = web3.utils.toWei("11", "ether");
         await config.flightSuretyApp.fundInsurance({from: config.owner, value: fundFee});
@@ -36,7 +35,7 @@ contract('FlightSurety: oracles', async (accounts) => {
                 let oracle = oracles[i];
                 await config.flightSuretyApp.registerOracle({from: oracle, value: fee});
                 let indexes = await config.flightSuretyApp.getMyIndexes.call({from: oracle});
-                // console.log(`Oracle Registered: ${indexes[0]}, ${indexes[1]}, ${indexes[2]}`);
+                // console.log(`Oracle ${oracle} Registered: ${indexes[0]}, ${indexes[1]}, ${indexes[2]}`);
                 assert.equal(3, indexes.length);
                 oracleIndexes[oracle] = indexes.map(idx => idx.toNumber());
             }
@@ -46,48 +45,77 @@ contract('FlightSurety: oracles', async (accounts) => {
             for (let i = 1; i < TEST_ORACLES_COUNT; i++) {
                 let oracle = oracles[i];
                 let indexes = oracleIndexes[oracle];
-                assert.equal(3, indexes.length);
+                assert.equal(3, indexes ? indexes.length : []);
             }
         });
 
     });
 
-    describe('Flight status request', async function () {
-        let flight = 'KL1395'; // Amsterdam - Saint Petersburg
-        let timestamp = Math.floor(Date.now() / 1000);
-        let index;
-        let oracleRequestEvenEmitted;
-        before(async () => {
-            let event = config.flightSuretyApp.OracleRequest();
-            event.on('data', e => {
-                oracleRequestEvenEmitted = true;
-                index = e.args.index.toNumber();
-            });
+    describe('Passengers', async function () {
+        let flightNumber = "815";
+        let timestamp = Math.floor(+new Date() / 1000) + (86400 * 2);
+        let airline;
+        let passenger = accounts[11];
+        let insuranceAmount = web3.utils.toWei("0.4", "ether");
+
+        before('register flight', async () => {
+            airline = config.owner;
+            await config.flightSuretyApp.registerFlight(flightNumber, timestamp, {from: airline});
+
+            let fee = web3.utils.toWei("1", "ether");
+            let oracleRequestEvent = config.flightSuretyApp.OracleRequest();
+            await Promise.all(oracles.map(async oracle => {
+                await config.flightSuretyApp.registerOracle({from: oracle, value: fee});
+                let indexes = await config.flightSuretyApp.getMyIndexes.call({from: oracle});
+                indexes = indexes.map(i => i.toNumber());
+                // console.log(indexes)
+                oracleRequestEvent.on('data', async function (e) {
+                    let index = e.args.index.toNumber();
+                    // console.log(index)
+                    if (indexes.includes(index)) {
+                        await config.flightSuretyApp.submitOracleResponse(
+                            index,
+                            airline,
+                            flightNumber,
+                            timestamp,
+                            20,
+                            {from: oracle});
+                    }
+                });
+            }));
+
         });
 
-        it('emits event for oracle request', async function () {
-            await config.flightSuretyApp.fetchFlightStatus(airline, flight, timestamp);
-            assert.isTrue(oracleRequestEvenEmitted);
+        it("can buy insurance", async function () {
+            await config.flightSuretyApp.buyInsurance(
+                airline, flightNumber, timestamp, {from: passenger, value: insuranceAmount});
+            let balance = await config.flightSuretyApp
+                .getInsuranceBalance.call(airline, flightNumber, timestamp, {from: passenger});
+            assert.equal(insuranceAmount, balance);
         });
-        it('accepts response only from expected oracles', async function() {
-            for (let i = 1; i < TEST_ORACLES_COUNT; i++) {
-                let oracle = oracles[i];
-                if (oracleIndexes[oracle].includes(index)) {
-                    await config.flightSuretyApp.submitOracleResponse(
-                        index,
-                        airline,
-                        flight,
-                        timestamp,
-                        STATUS_CODE_ON_TIME,
-                        {from: oracle});
-                }
-            }
-        });
-        it('emits event for flight status info')
-        it('forbids accepting data from non-expected oracles');
-    });
 
-    describe('Oracle handles flight status', async function() {
+        it('cannot withdraw funds back before flight');
 
-    });
+        it('can withdraw funds if flight got delayed because of airline', function (done) {
+            (async () => {
+                // console.log("Start");
+                let flightStatusEvent = config.flightSuretyApp.FlightRefunded();
+                let balanceAfter;
+                flightStatusEvent.on('data', async e => {
+                    let balanceBefore = await web3.eth.getBalance(passenger);
+                    // console.log({before: balanceBefore});
+                    let result = await config.flightSuretyApp.withdraw({from: passenger, gasPrice: 0});
+                    // console.log(result);
+                    balanceAfter = await web3.eth.getBalance(passenger);
+                    // console.log({after: balanceAfter});
+                    // console.log({diff: balanceAfter - balanceBefore});
+                    let increase = parseFloat(web3.utils.fromWei(String(balanceAfter - balanceBefore)));
+                    assert.isTrue(increase - 0.6 < 0.000001);
+                    done();
+                });
+                await config.flightSuretyApp.fetchFlightStatus(airline, flightNumber, timestamp);
+            })();
+        }, 5000);
+
+    })
 });
