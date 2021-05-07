@@ -87,7 +87,7 @@ contract FlightSuretyData is OperationalControl {
     }
 
     function enqueueAirlineForRegistration(address newAirline, address existingAirline) requireAuthorizedCaller external {
-        require(airlines[existingAirline].votedFor[newAirline] == false, "Already votes for this airline");
+        require(airlines[existingAirline].votedFor[newAirline] == false, "Already voted for this airline");
         if (airlines[newAirline].createdAt == 0) {
             airlines[newAirline].createdAt = block.timestamp;
         }
