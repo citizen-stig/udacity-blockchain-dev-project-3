@@ -2,9 +2,8 @@ const Test = require('../config/testConfig.js');
 
 contract('FlightSurety: oracles', async (accounts) => {
 
-    const TEST_ORACLES_COUNT = 15;
-    let airline = accounts[1];
-    let oracles = accounts.slice(51, 80);
+    let airline
+    let oracles
     let oracleIndexes = {};
     let config;
 
@@ -18,6 +17,8 @@ contract('FlightSurety: oracles', async (accounts) => {
 
     before('setup contract', async () => {
         config = await Test.Config(accounts);
+        oracles = config.oracles;
+        airline = config.airlines[0];
 
         const fundFee = web3.utils.toWei("11", "ether");
         await config.flightSuretyApp.fundInsurance({from: config.owner, value: fundFee});
@@ -31,7 +32,7 @@ contract('FlightSurety: oracles', async (accounts) => {
         it('cannot register with insufficient fee');
         it('can register', async function () {
             let fee = web3.utils.toWei("1", "ether");
-            for (let i = 1; i < TEST_ORACLES_COUNT; i++) {
+            for (let i = 1; i < oracles.length; i++) {
                 let oracle = oracles[i];
                 await config.flightSuretyApp.registerOracle({from: oracle, value: fee});
                 let indexes = await config.flightSuretyApp.getMyIndexes.call({from: oracle});
@@ -41,8 +42,8 @@ contract('FlightSurety: oracles', async (accounts) => {
             }
         });
         it('does not give index to non registered');
-        it('assigns indexes to oracles', function() {
-            for (let i = 1; i < TEST_ORACLES_COUNT; i++) {
+        it('assigns indexes to oracles', function () {
+            for (let i = 1; i < oracles.length; i++) {
                 let oracle = oracles[i];
                 let indexes = oracleIndexes[oracle];
                 assert.equal(3, indexes ? indexes.length : []);
@@ -56,6 +57,7 @@ contract('FlightSurety: oracles', async (accounts) => {
         let timestamp = Math.floor(+new Date() / 1000) + (86400 * 2);
         let airline;
         let passenger = accounts[11];
+        let isCallbackActive = true;
         let insuranceAmount = web3.utils.toWei("0.4", "ether");
 
         before('register flight', async () => {
@@ -70,6 +72,9 @@ contract('FlightSurety: oracles', async (accounts) => {
                 indexes = indexes.map(i => i.toNumber());
                 // console.log(indexes)
                 oracleRequestEvent.on('data', async function (e) {
+                    if (!isCallbackActive) {
+                        return;
+                    }
                     let index = e.args.index.toNumber();
                     // console.log(index)
                     if (indexes.includes(index)) {
@@ -85,6 +90,10 @@ contract('FlightSurety: oracles', async (accounts) => {
             }));
 
         });
+
+        after('disable callback', () => {
+            isCallbackActive = false;
+        })
 
         it("can buy insurance", async function () {
             await config.flightSuretyApp.buyInsurance(
@@ -102,6 +111,9 @@ contract('FlightSurety: oracles', async (accounts) => {
                 let flightStatusEvent = config.flightSuretyApp.FlightRefunded();
                 let balanceAfter;
                 flightStatusEvent.on('data', async e => {
+                    if (!isCallbackActive) {
+                        return;
+                    }
                     let balanceBefore = await web3.eth.getBalance(passenger);
                     // console.log({before: balanceBefore});
                     let result = await config.flightSuretyApp.withdraw({from: passenger, gasPrice: 0});

@@ -18,21 +18,26 @@ const Config = async function (accounts) {
         "0x2f2899d6d35b1a48a4fbdc93a37a72f264a9fca7"
     ];
 
-
     let owner = accounts[0];
-    let firstAirline = accounts[1];
+    let airlines = accounts.slice(1, 10);
+    let passengers = accounts.slice(11, 20);
+    let oracles = accounts.slice(21, 60);
+
     let flightSuretyData = await FlightSuretyData.new();
     let flightSuretyApp = await FlightSuretyApp.new(flightSuretyData.address);
 
     await flightSuretyData.authorizeCaller(flightSuretyApp.address);
 
     return {
-        owner: owner,
-        firstAirline: firstAirline,
+        owner,
+        firstAirline: owner,
+        airlines,
+        passengers,
+        oracles,
         weiMultiple: (new BigNumber(10)).pow(18),
-        testAddresses: testAddresses,
-        flightSuretyData: flightSuretyData,
-        flightSuretyApp: flightSuretyApp
+        testAddresses,
+        flightSuretyData,
+        flightSuretyApp
     }
 }
 
