@@ -28,7 +28,18 @@ make test
 
 Tests cover following functionality:
 
-*
+* Separation of concerns
+* Airlines registration
+* Oracles: registration and handling of results
+* Passengers insurances
+
+After running tests, please restart ganache and re-deploy contract to have clean state before using dapp:
+
+```
+# ctrl-C in ganache-cli terminal
+make ganache-cli
+npm run deploy-contracts
+```
 
 #### Run
 

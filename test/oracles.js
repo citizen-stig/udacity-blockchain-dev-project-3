@@ -4,6 +4,7 @@ contract('FlightSurety: oracles', async (accounts) => {
 
     let airline
     let oracles
+    let non
     let oracleIndexes = {};
     let config;
 
@@ -18,6 +19,7 @@ contract('FlightSurety: oracles', async (accounts) => {
     before('setup contract', async () => {
         config = await Test.Config(accounts);
         oracles = config.oracles;
+
         airline = config.airlines[0];
 
         const fundFee = web3.utils.toWei("11", "ether");
@@ -27,9 +29,16 @@ contract('FlightSurety: oracles', async (accounts) => {
 
     });
 
-
     describe('Oracle registration', async function () {
-        it('cannot register with insufficient fee');
+        it('cannot register with insufficient fee', async function () {
+            let amount = web3.utils.toWei("0.3", "ether")
+            try {
+                await config.flightSuretyApp.registerOracle({from: config.passengers[0], value: amount});
+                assert.fail("Should not allow to process");
+            } catch (error) {
+                assert.equal("Insufficient registration fee", error.reason);
+            }
+        });
         it('can register', async function () {
             let fee = web3.utils.toWei("1", "ether");
             for (let i = 1; i < oracles.length; i++) {
@@ -41,7 +50,14 @@ contract('FlightSurety: oracles', async (accounts) => {
                 oracleIndexes[oracle] = indexes.map(idx => idx.toNumber());
             }
         });
-        it('does not give index to non registered');
+        it('does not give index to non registered', async function () {
+            try {
+                await config.flightSuretyApp.getMyIndexes.call({from: config.passengers[0]});
+                assert.fail("Should not allow to process");
+            } catch (error) {
+                assert.isTrue(error.hijackedStack.includes('Not registered as an oracle'));
+            }
+        });
         it('assigns indexes to oracles', function () {
             for (let i = 1; i < oracles.length; i++) {
                 let oracle = oracles[i];
@@ -49,7 +65,6 @@ contract('FlightSurety: oracles', async (accounts) => {
                 assert.equal(3, indexes ? indexes.length : []);
             }
         });
-
     });
 
     describe('Passengers', async function () {
@@ -103,7 +118,14 @@ contract('FlightSurety: oracles', async (accounts) => {
             assert.equal(insuranceAmount, balance);
         });
 
-        it('cannot withdraw funds back before flight');
+        it('cannot withdraw funds back before flight', async function () {
+            try {
+                await config.flightSuretyApp.withdraw({from: passenger});
+                assert.fail("Should not allow to process");
+            } catch (error) {
+                assert.equal("No funds to withdraw", error.reason);
+            }
+        });
 
         it('can withdraw funds if flight got delayed because of airline', function (done) {
             (async () => {
